@@ -1,1 +1,62 @@
+name: RomanVoice iOS Build
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: romanvoice-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode anzeigen
+        run: xcodebuild -version
+      - name: Abhängigkeiten vorbereiten
+        run: |
+          brew install xcodegen
+          bash scripts/prepare_dependencies.sh
+          python3 scripts/verify_project.py
+          xcodegen generate
+      - name: Swift-Syntax mit Apple-Compiler prüfen
+        run: find RomanVoice -name '*.swift' -print0 | xargs -0 xcrun swiftc -frontend -parse
+      - name: Simulator auswählen
+        run: |
+          xcrun simctl list devices available -j > /tmp/romanvoice-simulators.json
+          python3 - <<'PY'
+          import json, os
+          data=json.load(open('/tmp/romanvoice-simulators.json'))
+          device=next(d for k,v in data['devices'].items() if 'iOS' in k for d in v if 'iPhone' in d['name'])
+          with open(os.environ['GITHUB_ENV'],'a') as f: f.write('SIMULATOR_ID='+device['udid']+'\n')
+          PY
+      - name: Verhaltenstests im Simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project RomanVoice.xcodeproj -scheme RomanVoice -destination "id=$SIMULATOR_ID" -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test | tee tests.log
+      - name: RomanVoice für iPhone bauen
+        run: |
+          set -o pipefail
+          xcodebuild -project RomanVoice.xcodeproj -scheme RomanVoice -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' build | tee build.log
+      - name: IPA für Sideloadly vorbereiten
+        run: |
+          mkdir -p output/Payload
+          cp -R build/Build/Products/Release-iphoneos/RomanVoice.app output/Payload/
+          cd output
+          zip -qry RomanVoice-3.0-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RomanVoice-3.0-unsigned
+          path: output/RomanVoice-3.0-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RomanVoice-Pruefberichte
+          path: |
+            tests.log
+            build.log
+            TestResults.xcresult
 
