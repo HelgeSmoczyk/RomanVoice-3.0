@@ -1,0 +1,9 @@
+Vendor/
+build/
+output/
+DerivedData/
+*.xcresult
+*.log
+*.xcuserstate
+xcuserdata/
+RomanVoice.xcodeproj/

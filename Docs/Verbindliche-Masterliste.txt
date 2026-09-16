@@ -1,0 +1,588 @@
+Ja. Hier ist die Masterliste unserer verbindlichen Vorgaben für RomanVoice 3.0, so dass du sie auch direkt Work geben kannst.
+RomanVoice 3.0 – verbindliche Vorgaben
+1. Grundprinzip
+- Native iOS-App, zunächst nur privat.
+- UI und Sprachausgabe zunächst Deutsch.
+- Import eigener Romane.
+- Unterstützte Formate: PDF mit echtem Text, DOCX und TXT.
+- Keine Scans/Bilder, kein OCR.
+- Verarbeitung möglichst vollständig lokal auf dem iPhone.
+- Nach Einrichtung keine laufenden Kosten pro Buch.
+- Keine Cloudpflicht.
+- Kein Export/Teilen der erzeugten Hörbücher.
+- Hörbuchdateien bleiben im privaten App-Speicher.
+- RomanVoice ist kein Hörbuchshop und keine Tauschplattform.
+- Bestehende alte RomanVoice-App auf dem iPhone zunächst nicht löschen.
+- RomanVoice 3.0 wird technisch neu aufgebaut. Alte fehlgeschlagene Implementierungen sind nur Fehler-/Lernmaterial, keine Code- oder Designvorlage.
+2. Visuelles Grundkonzept
+Verbindliche Farben:
+Grün – Orange – Weiß/Creme – Schwarz
+Keine zusätzlichen dominierenden Farben.
+Grün und Orange dürfen:
+- Struktur
+- leichte Verläufe
+- Licht
+- Helligkeitsunterschiede
+- dezente Tiefe
+haben. Keine platten einfarbigen Standard-SwiftUI-Flächen.
+Die sechs gelieferten Bilder sind verbindliche visuelle Referenzen
+1. Start / Salon
+2. Bibliothek
+3. Neuer Roman / Analyse
+4. Lesen
+5. Hörbücher
+6. Einstellungen
+Sie dürfen nicht durch primitive SwiftUI-Zeichnungen ersetzt werden.
+Fotorealistische bzw. hochwertige Grafik = Grafikasset.
+Dynamische Bedienelemente = SwiftUI darüber.
+Bewegliche Elemente = eigene Animationslayer.
+Neuer Salon
+Das zuletzt erzeugte saubere Salonbild ist die gemeinsame räumliche Grundlage.
+Möglicher bevorzugter Ansatz:
+- Start zeigt den gesamten Salon.
+- Bibliothek → Zoom Richtung Bücherregal.
+- Lesen → Zoom Richtung grünem Sessel.
+- Hörbücher → Zoom Richtung Grammophon.
+- Neuer Roman → Zoom Richtung Schreibtisch.
+- Der jeweilige Endausschnitt kann Hintergrund des folgenden Bereichs werden.
+Damit sollen die Bereiche wie ein zusammenhängender RomanVoice-Raum wirken.
+3. Startbildschirm
+Hochwertiger Salon/Bibliothek.
+Enthält:
+- Bücherregal → Bibliothek
+- grüner Ledersessel → Lesen
+- Schreibtisch/offenes Buch/Lupe → Neuer Roman / Analyse
+- Grammophon → Hörbücher
+- Hamburger oben links
+- Zahnrad oben rechts
+Titel:
+RomanVoice
+Slogan:
+„Dein Buch. Dein Hörbuch.“
+RomanVoice-Titel nostalgisch/elegant, aber nicht kitschig.
+Vollbild auf dem iPhone, sauber bis an Displayränder/Dynamic Island angepasst.
+4. Bibliothek
+Zeigt tatsächliche importierte Bücher, keine fest eingebrannten Beispielbücher.
+Pro Buch:
+- Cover, falls vorhanden
+- Titel
+- Autor, falls vorhanden
+- Ersatzcover, wenn kein Cover vorhanden
+- Status:
+  - Noch nicht angefangen
+  - Angefangen
+  - Beendet
+Kein gemeinsamer Lesen/Hören-Prozentwert.
+Allgemeines Öffnen eines Buches führt zur neutralen Buchdetailseite.
+Dort getrennt:
+- Lesen + eigener Fortschritt
+- Hören + eigener Fortschritt
+- Kapitel
+- Buchinformationen
+- Erstellungsstatus
+- Aussprache
+- Speicherverwaltung
+5. Zwei getrennte Positionen
+Jedes Buch besitzt:
+- readPosition
+- listenPosition
+Beides möglichst semantische Textanker, nicht nur Seitenzahl bzw. Audiosekunden.
+Dadurch kann man beispielsweise beim Hören Kapitel 20 erreicht haben, beim Lesen kurz Kapitel 5 nachschlagen und anschließend beim Hören weiterhin bei Kapitel 20 fortsetzen.
+6. Direkter Wechsel Lesen ⇄ Hören
+Kleiner Schalter mit den bekannten Lesen-/Hören-Symbolen und Doppelpfeil.
+Beim Wechsel wird zur gleichen aktuellen Textstelle gesprungen.
+Beide Richtungen landen am Anfang des betreffenden Satzes.
+Beim Lesen → Hören:
+„Hörposition übernehmen?“
+- Übernehmen
+- Nur hier öffnen
+Beim Hören → Lesen:
+„Leseposition übernehmen?“
+- Übernehmen
+- Nur hier öffnen
+„Nur hier öffnen“ verändert die bisher gespeicherte reguläre Position zunächst nicht.
+Keine Option „Nicht mehr fragen“ in V1/3.0.
+7. Reader
+Einzelne Buchseite, kein Doppelseitenlayout.
+Konzeptuell:
+DIN A5
+Ziel:
+34 Textzeilen pro Seite
+Schrift:
+EB Garamond
+Für DOCX/TXT wird daraus ein eigenes festes Buchlayout erzeugt.
+PDF möglichst entsprechend seiner vorhandenen Seitenstruktur.
+Jedes neue Kapitel beginnt:
+- auf neuer Seite
+- ganz oben
+Originale Kapitelüberschriften bleiben erhalten.
+Keine erfundenen Kapitelüberschriften.
+8. Reader-Navigation
+Standard:
+horizontal blättern
+Alternativ:
+- vertikal scrollen
+- dezente Seitentasten:
+  - oben links zurück
+  - unten rechts weiter
+Auswahl wird gespeichert.
+Zoom
+Feste Buchseite, kein Kindle-artiges permanentes Reflow.
+Bei Zoom:
+- Seite kann verschoben werden.
+- Zoomfaktor bleibt beim Seitenwechsel erhalten.
+- Beispiel: 160 % → nächste Seite ebenfalls 160 %.
+- Neue Seite startet bei erhaltenem Zoom oben links.
+Wichtig:
+Eine einzige kontinuierliche Geste darf beim Zoomen niemals gleichzeitig die Seite wechseln.
+Am Rand:
+1. Finger loslassen.
+2. Neue Wischgeste beginnen.
+3. Erst diese darf umblättern.
+9. Reader-Steuerelemente
+Während normalen Lesens verschwinden:
+- Hamburger
+- Seitenanzeige
+- Lesen⇄Hören
+- weitere Bedienelemente
+Antippen der Seite blendet sie ein.
+Seitenanzeige unten dezent:
+„Seite X von Y“
+Lesen⇄Hören unten links.
+Hamburger enthält:
+- Kapitelübersicht
+- Zur Bibliothek
+- Zum Hauptmenü
+Kapitelübersicht wie klassisches gedrucktes Inhaltsverzeichnis:
+Kapitel – Titel – Seitenzahl
+Antippen springt zum Kapitelanfang.
+10. Reader hell/dunkel
+Automatisch nach iOS-Systemdarstellung.
+Hell:
+- warmes Creme-/Papierweiß
+Dunkel:
+- augenschonendes dunkles Buchdesign
+Kein eigener zusätzlicher RomanVoice-Hell/Dunkel-Schalter notwendig.
+11. Displaysperre beim Lesen
+Während aktiven Lesens bleibt Bildschirm wach.
+Nach 15 Minuten ohne Reader-Interaktion darf wieder die normale iPhone-Displaysperre greifen.
+Als Aktivität zählen z. B.:
+- Blättern
+- Scrollen
+- Pan
+- Zoom
+- Bedienung
+RomanVoice verändert nicht die Bildschirmhelligkeit.
+Audio darf bei gesperrtem Bildschirm weiterlaufen.
+12. Keine Lesezeichen in RomanVoice 3.0/V1
+Keine Bookmarks.
+Automatische Positionen plus getrennte Lesen-/Hören-Positionen reichen zunächst.
+13. Player
+Erforderlich:
+- Play/Pause
+- 15 Sekunden zurück
+- 15 Sekunden vor
+- vorheriges Kapitel
+- nächstes Kapitel
+- Fortschritt
+- Zeit
+- Wiedergabegeschwindigkeit
+- Kapitelübersicht
+- Sleep Timer
+- Lesen⇄Hören
+- Fortsetzen der gespeicherten Hörposition
+Geschwindigkeit wird pro Buch gespeichert.
+Standard:
+1,0×
+14. Sleep Timer
+Exakt:
+- 15 Minuten
+- 30 Minuten
+- 45 Minuten
+- 60 Minuten
+- Ende des Kapitels
+15. Externe Audiowiedergabe
+Unterstützen:
+- iPhone-Lautsprecher
+- Kopfhörer
+- Bluetooth
+- Auto
+- AirPlay
+- Lock-Screen-Steuerung
+- Headset-/Bluetooth-Bedienung
+- Audio-Unterbrechungen
+Echo/Alexa funktioniert über Bluetooth-Lautsprecherbetrieb.
+Keine eigene Alexa-Sprachintegration in dieser Version.
+16. Import
+Start:
+Neuen Roman hinzufügen
+System-Dateiauswahl.
+Mögliche Quellen über iOS:
+- Dateien
+- iCloud Drive
+- Auf meinem iPhone
+- unterstützte File Provider
+Wenn möglich zusätzlich:
+- Drag & Drop
+- Öffnen/Teilen mit RomanVoice
+Vor Verarbeitung anzeigen:
+- Dateiname
+- Dateityp
+- Dateigröße
+- verfügbare Metadaten
+Originaltext darf durch Analyse nicht verändert werden.
+17. Kapitelanalyse
+Automatisch erkennen:
+- Prolog
+- Epilog
+- Kapitelnummern
+- vorhandene Kapitelüberschriften
+Originaltitel bleiben erhalten.
+Wenn ein Buch lediglich „Kapitel 17“ hat, erfindet RomanVoice keinen Titel dazu.
+Interne technische Segmente dürfen natürlich existieren.
+18. Lokale KI
+Geplantes Kernmodell:
+Qwen3-1.7B Q4_K_M GGUF
+Repository:
+ggml-org/Qwen3-1.7B-GGUF
+Datei:
+Qwen3-1.7B-Q4_K_M.gguf
+ca. 1,28 GB.
+SHA-256:
+d2387ca2dbfee2ffabce7120d3770dadca0b293052bc2f0e138fdc940d9bc7b5
+Einbindung lokal über llama.cpp / passenden Swift-Wrapper.
+Keine OpenAI-/ElevenLabs-API für den kostenlosen Kern erforderlich.
+19. Modellverwaltung
+Beim Start prüfen:
+- Modell vorhanden?
+- richtige Datei?
+- SHA-256 korrekt?
+Wenn nicht:
+„Kostenlose KI herunterladen“
+Erforderlich:
+- Downloadfortschritt
+- Pause
+- Fortsetzen
+- beschädigtes Modell reparieren
+- Speicherung in geeignetem privaten App-Verzeichnis
+Beim normalen App-Update möglichst erhalten.
+Beim Löschen der App werden lokale App-Daten einschließlich Modell durch iOS entfernt.
+20. Analyse darf nicht wieder blind alles durch Qwen schicken
+Deterministische schnelle Voranalyse zuerst:
+- Kapitel
+- Absätze
+- direkte Rede
+- Namen
+- mögliche Sprecher
+- strukturelle Hinweise
+Qwen vor allem für:
+- unklare Sprecher
+- schwierige Zuordnungen
+- Geschlechts-/Figurenkontext
+- semantisch schwierige Fälle
+21. Intelligente Segmentierung
+Keine blinden festen 2500-Zeichen-Blöcke.
+Variable Segmente.
+Nie möglichst mitten trennen in:
+- Wort
+- Name
+- Satz
+- direkter Rede
+Bevorzugte Grenzen:
+- Absatz
+- Szene
+- Kapitel
+- natürliche Textgrenzen
+Ausreichender vorheriger Kontext muss für Sprecherzuordnung erhalten bleiben.
+22. Analysebildschirm
+Eigener Vollbildbereich, kein kleines Fenster.
+Anzeigen:
+- Dateiname
+- tatsächlicher aktueller Arbeitsschritt
+- echter Fortschritt
+- Prozent
+- soweit sinnvoll Restzeit
+- erkannte Figuren
+- aktuelle Verarbeitung
+Keine erfundenen Prozentwerte.
+Vor dem ersten abgeschlossenen KI-Schritt darf eine Aktivitätsanzeige laufen, aber kein Fake-Fortschritt.
+Roter:
+Analyse abbrechen
+23. Checkpoints / Wiederaufnahme
+Sehr wichtig.
+RomanVoice speichert konkrete abgeschlossene Verarbeitungsschritte und Segmente, nicht lediglich „37 %“.
+Bei:
+- App geschlossen
+- Absturz
+- Akku leer
+- Netzwerkverlust
+- Unterbrechung
+- niedrigem Speicher
+muss möglichst am letzten sicheren Checkpoint weitergemacht werden.
+Unterschied
+Technische/unbeabsichtigte Unterbrechung:
+→ automatisch fortsetzbar.
+Benutzer drückt ausdrücklich:
+„Analyse abbrechen“ / „Erstellung abbrechen“
+→ bewusster Abbruch, keine automatische Wiederaufnahme.
+24. Spoilerschutz
+KI darf den gesamten Roman kennen.
+Benutzeroberfläche darf dadurch aber keine späteren Handlungsinformationen verraten.
+Unsichere Sprecherstellen:
+- Später klären
+- Jetzt prüfen – kann Spoiler enthalten
+Modi:
+- Streng
+- Normal
+- Aus
+Ungeklärte Passage blockiert nicht automatisch die restliche Analyse.
+25. Figurenliste
+Reihenfolge:
+1. Erzähler
+2. erkannte Figuren
+Für reguläre Figuren schlägt die KI vor:
+- Geschlecht
+- Basisstimme
+- Tonhöhe
+- Geschwindigkeit
+Geschlecht:
+- Männlich
+- Weiblich
+- Bitte auswählen
+Alle KI-Auswahlen sind Vorschläge.
+Der Benutzer darf vor Hörbucherstellung jede vorgeschlagene Einstellung ändern.
+26. Stimmen
+Kostenlose lokale Sprachausgabe zunächst über:
+AVSpeechSynthesizer
+Zielkonzept:
+- etwa 20 männliche logische Stimmenprofile
+- etwa 20 weibliche logische Stimmenprofile
+Aber:
+RomanVoice darf nicht behaupten, Apple stelle tatsächlich 20 vollkommen unterschiedliche männliche und 20 vollkommen unterschiedliche deutsche Grundstimmen bereit.
+Logische Varianten können aus verfügbaren Grundstimmen plus Parametern entstehen.
+27. Stimmenparameter
+Für jede reguläre Figur:
+Tonhöhe
+- Tief
+- Normal
+- Hoch
+Geschwindigkeit
+- Langsam
+- Normal
+- Schnell
+Damit entstehen verschiedene Kombinationen.
+28. Hörprobe
+Jede tatsächlich gewählte Kombination muss probehörbar sein.
+Die Hörprobe verwendet exakt:
+- gewählte Grundstimme
+- gewählte Tonhöhe
+- gewählte Geschwindigkeit
+Nicht nur irgendeine Demo der Grundstimme.
+29. Dublettenregel
+Reguläre Figuren sollen keine identischen Stimmenvarianten erhalten, solange noch eine geeignete freie Variante existiert.
+RomanVoice muss:
+1. freie Varianten priorisieren
+2. Dubletten programmgesteuert verhindern
+3. erst Wiederholungen zulassen, wenn der entsprechende Pool tatsächlich erschöpft ist.
+30. Erzähler – Sonderregel
+Erzähler erhält nicht 20 Stimmen zur Auswahl.
+V1:
+- eine männliche Erzähler-Grundstimme
+- eine weibliche Erzähler-Grundstimme
+Benutzer wählt Geschlecht.
+Danach:
+- Tief / Normal / Hoch
+- Langsam / Normal / Schnell
+Später könnte eine zweite Grundstimme pro Geschlecht hinzukommen.
+31. Kleinstrollen – verbindliche Definition
+Eine Kleinst-/Nebenrolle ist:
+jede Figur mit höchstens drei getrennten Sprechauftritten/Sprechpassagen im gesamten Roman.
+Die Länge dieser Passagen spielt keine Rolle.
+Ab dem:
+4. Sprechauftritt
+wird die Figur zur regulären Figur und erhält normale Stimmenzuweisung.
+32. Kleinstrollen-Stimmen
+Kleinstrollen verbrauchen nicht die knappen regulären Figurenstimmen.
+Sie benutzen die Erzähler-Grundstimme ihres Geschlechts, aber mit anderer Tonhöhen-/Geschwindigkeitskombination.
+3 Tonhöhen × 3 Geschwindigkeiten:
+9 Varianten je Erzähler-Grundstimme.
+Wenn der gleichgeschlechtliche Erzähler bereits eine Kombination verwendet, bleiben zunächst acht andere Kombinationen.
+RomanVoice verteilt diese möglichst automatisch.
+Kleinstrollen sollen den Benutzer nicht mit Dutzenden Pflichtentscheidungen belasten.
+Dieser Pool ist von der normalen Dublettenregel getrennt.
+33. Voraussetzung für Hörbucherstellung
+Vor „Hörbuch erstellen“ müssen alle regulären Figuren vollständig zugewiesen sein.
+Ungeklärte notwendige Stimmenzuweisungen blockieren die Erstellung.
+34. Stimmenmenü
+Stimmenverwaltung ist hauptsächlich Teil des:
+Analyse → Vorbereitung → Hörbuch erstellen
+Workflows.
+Sie ist kein dauerhaft prominenter Hauptmenüpunkt.
+Nach fertiger Hörbucherstellung gibt es in dieser Version keinen einfachen nachträglichen Stimmenwechsel, weil dies Audio-Neugenerierung und Versionierung erfordern würde.
+35. Hörbucherzeugung
+Chronologisch.
+Sobald genügend Anfangsaudio vorhanden ist – Ziel ungefähr 10–15 Minuten – darf Benutzer bereits hören, während der Rest weiter erzeugt wird.
+Fortschritt und Checkpoints werden gespeichert.
+Audio kapitel-/segmentweise verwalten.
+36. Audio-Speicher
+Generiertes Audio:
+- privater RomanVoice-App-Speicher
+- nicht in Dateien/Downloads
+- nicht Medienbibliothek
+- kein Teilen
+- kein AirDrop
+- kein „In Dateien sichern“
+- kein Export
+- möglichst verschlüsselt gespeichert
+Keine proprietäre Audioerfindung nötig; geschützter/verschlüsselter privater Speicher ist sinnvoller.
+37. Original, Analyse und Audio sind unabhängig
+Drei getrennte Ebenen:
+1. Original PDF/DOCX/TXT
+2. Analysemetadaten
+3. erzeugtes Audio
+Original darf nach erfolgreicher Verarbeitung entfernt werden, ohne das Hörbuch zu löschen.
+Analysemetadaten bleiben klein und können mit dem Hörbuch erhalten bleiben.
+38. Speicherverwaltung
+Pro Buch:
+- Original entfernen
+- Audio entfernen und Roman/Analysedaten behalten
+- Roman/Hörbuch vollständig löschen
+Originalentfernung darf Audio nicht automatisch löschen.
+39. Netzwerkentscheidung pro Buch
+Vor Verarbeitung:
+- Nur über WLAN
+- WLAN und mobile Daten
+Da lokale Analyse selbst kein Netz braucht, betrifft das insbesondere benötigte Downloads bzw. zukünftige netzabhängige Komponenten.
+40. Aussprachewörterbuch
+Pro Buch.
+Benutzer kann falsche Aussprache korrigieren.
+Korrektur gilt anschließend für das Buch.
+Möglichkeiten:
+- nur zukünftige Stellen
+- betroffene Stellen neu erzeugen
+Langfristiges Ziel: Korrektur möglichst bequem, eventuell auch eingesprochen. Die synthetische Figurenstimme bleibt dabei erhalten.
+41. Benachrichtigungen
+Sparsam.
+Sinnvolle Fälle:
+- Hörbuch bereit zum ersten Hören
+- Benutzerentscheidung erforderlich
+- Hörbuch vollständig erstellt
+Keine Benachrichtigungsflut.
+42. Animation Lesen – exakt
+Im Sesselbereich liegt ein Buch.
+Nach Buchauswahl:
+1. Buch hebt sich.
+2. Fliegt Richtung Betrachter.
+3. Öffnet sich während des Fluges.
+4. Eine einzelne Seite richtet sich zum Display aus.
+5. Kamera fährt in diese Seite hinein.
+6. Seite wächst auf Readergröße.
+7. Erst dann beginnt der interaktive Reader.
+Ganz wichtig:
+Auf der fliegenden Seite muss bereits die tatsächliche Zielseite sichtbar sein.
+Bei neuem Buch:
+→ erste Seite.
+Bei begonnenem Buch:
+→ gespeicherte Leseposition.
+Kein generisches Buch und danach plötzlich anderer Readertext.
+Die Seite muss optisch kontinuierlich in die echte Readerseite übergehen.
+43. Analyseanimation – exakt
+Schreibtisch:
+- offenes Buch
+- Lupe liegt zunächst daneben
+- Computer sichtbar
+Bei Analyse:
+1. Lupe hebt sich wie von unsichtbarer Hand.
+2. fährt wiederholt über Textzeilen
+3. nur unter der Lupe lösen sich Buchstaben/Wörter
+4. diese bewegen sich durch/aus der Lupe
+5. anschließend Richtung Computer
+Animation zeigt tatsächliche Aktivität.
+Fortschrittswert bleibt trotzdem real.
+44. Grammophonanimation – exakt
+Beim Start der Wiedergabe:
+1. Buchseiten werden von unten kontinuierlich ins Grammophon gezogen.
+2. Kurbel dreht sich exakt dreimal.
+3. Danach dreht sich der Plattenteller kontinuierlich.
+4. Aus dem Trichter entstehen grüne/orange:
+   - Schallwellen
+   - Noten
+5. Sie wandern langsam nach oben/außen.
+6. Richtung Bildschirmrand werden sie zunehmend transparenter.
+7. Am Rand verschwinden sie vollständig.
+8. Neue entstehen kontinuierlich – kein sichtbarer Loop-Neustart.
+Pause
+- Plattenteller stoppt.
+- Noten und Schallwellen verschwinden sofort.
+- Kurbel muss nicht rückwärts laufen.
+Fortsetzen
+- Kurbel erneut genau dreimal
+- danach Plattenteller weiter.
+Animation muss vom echten Playerstatus gesteuert werden.
+45. Übergänge zwischen Hauptbereichen
+Bevorzugt den gemeinsamen Salon räumlich nutzen.
+Keine billigen harten Wechsel, wenn ein sauberer Kamera-/Zoomübergang möglich ist.
+Ziel:
+Der Benutzer bewegt sich optisch innerhalb eines RomanVoice-Raumes.
+46. Einstellungen
+Enthalten unter anderem:
+- Reader-Navigation
+- Spoilerschutz
+- Speicher & Daten
+- Modellverwaltung
+- Benachrichtigungen
+- Datenschutz
+- Nutzungsbedingungen
+- Impressum
+- Hilfe/Support
+- Lizenzen
+- App-Version
+Funktionale Unterseiten benutzen den kühleren, sachlicheren RomanVoice-Stil der Einstellungsvorlage.
+Auch Figuren-/Stimmenverwaltung während Analyse darf diesen sachlicheren Stil verwenden.
+47. Rechtliches
+Vor Veröffentlichung nochmals gesondert prüfen:
+- private Kopie / deutsches Urheberrecht
+- Apple App Review
+- verwendete Open-Source-Lizenzen
+- Modelllizenz
+- Schriftlizenz EB Garamond
+- Datenschutzerklärung
+- Nutzungsbedingungen
+Keine Aussage „Benutzer ist verantwortlich, damit sind wir rechtlich raus“.
+48. Kostenloses Test-/Buildziel
+Derzeit:
+0 €
+Kein Mac-Kauf.
+Kein bezahltes Apple-Developer-Abo für die private Testphase.
+Build über GitHub Actions/macOS-Runner.
+Danach Windows/Sideloadly für kostenlose Apple-ID-Signierung und Installation.
+Die 7-Tage-Signierung wird für Tests akzeptiert.
+49. Wichtigste Entwicklungsregel für RomanVoice 3.0
+Nicht wieder die gesamte App mit Ersatzgrafiken „interpretieren“.
+Die gelieferten visuellen Vorlagen sind die Qualitätsreferenz.
+Und ebenso wichtig:
+Nicht erst nach einem fünfstündigen Umbau feststellen, dass die Oberfläche falsch aussieht.
+Grafikassets müssen tatsächlich im Projekt vorhanden und im Code verwendet werden.
+Keine primitive Shape-/Rectangle-/Circle-Nachzeichnung als Ersatz für den Salon, Sessel, Schreibtisch, das Grammophon usw.
+50. Abnahmeregel
+RomanVoice 3.0 gilt nicht deshalb als erfolgreich, weil:
+„Build grün“
+ist.
+Grün bedeutet ausschließlich:
+Der Compiler hat den Code akzeptiert.
+Abnahme umfasst mindestens:
+- visuelle Übereinstimmung
+- Navigation
+- Import
+- Reader
+- getrennte Positionen
+- Player
+- Audio
+- Stimmen
+- KI-Analyse
+- Checkpoints
+- Wiederaufnahme
+- Speicher
+- Animationen
+- reale Bedienung auf dem iPhone.
+Das ist die Liste, die ich Work als verbindliche RomanVoice-3.0-Spezifikation geben würde.

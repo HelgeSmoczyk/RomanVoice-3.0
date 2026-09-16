@@ -1,0 +1,44 @@
+[
+  {
+    "asset": "Salon",
+    "source": "Salon.png",
+    "sha256": "04aa72fb9d6b4c68c8f65ae7d9b6d8e34775f5d7a8b31aa5e7bd498ea3acee4a",
+    "unchanged": true
+  },
+  {
+    "asset": "ReferenceStart",
+    "source": "01_RomanVoice_Vorlage.jpeg",
+    "sha256": "0e5bbd30e677022747f828f91f8c63868f8ec128972a5eb63f1f199f284bb0ae",
+    "unchanged": true
+  },
+  {
+    "asset": "ReferenceReading",
+    "source": "02_Bibliothek_Vorlage.jpeg",
+    "sha256": "814f9f72f69e84048cb887566075eb91818cc117837beff97c93fae48aaa1cd8",
+    "unchanged": true
+  },
+  {
+    "asset": "ReferenceAnalysis",
+    "source": "03_Neuer_Roman_Vorlage.jpeg",
+    "sha256": "f2ce7932bd10636ba3d5e7cb7d9fd18c9f2a16cf877f01d0abdfd35113cd2234",
+    "unchanged": true
+  },
+  {
+    "asset": "ReferenceLibrary",
+    "source": "04_Lesen_Vorlage.jpeg",
+    "sha256": "33f8d03b633f3606fab66a353c59d129e33cc78902e52058d5bb5f8c4c9c9d5c",
+    "unchanged": true
+  },
+  {
+    "asset": "ReferenceAudio",
+    "source": "05_Hoerbuecher_Vorlage.jpeg",
+    "sha256": "4624c2c464363d5b6d03d7a2d4f6f26d1124cbf708c1c5468c89d1e2441786c6",
+    "unchanged": true
+  },
+  {
+    "asset": "ReferenceSettings",
+    "source": "06_Einstellungen_Vorlage.jpeg",
+    "sha256": "ddce61132c5768b191b45472b0d0f6f719da3a9fdbc646413d212438c88b7679",
+    "unchanged": true
+  }
+]
