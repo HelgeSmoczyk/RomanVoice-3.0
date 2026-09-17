@@ -48,21 +48,115 @@ import Combine
         segment = book.segmentIndex(at: offset ?? book.listening.offset)
         load(seconds: offset == nil ? book.listening.seconds : 0, autoplay: autoplay)
     }
-    private func load(seconds: Double = 0, autoplay: Bool) {
-        guard let id = bookID, let book = library.book(id), book.segments.indices.contains(segment) else { return }
-        player?.stop(); player = nil
-        let item = book.segments[segment]
-        guard let filename = item.audioFile else { playing = false; waiting = autoplay; error = item.speaker == nil ? "Diese Sprecherstelle muss zuerst geklärt werden." : "Dieser Abschnitt wird noch erstellt."; return }
-        do {
-            let data = try AudioVault.read(AppFiles.book(id).appendingPathComponent(filename))
-            let audio = try AVAudioPlayer(data: data)
-            audio.delegate = self; audio.enableRate = true; audio.rate = book.playbackRate
-            audio.currentTime = min(seconds, max(0, audio.duration - 0.05))
-            player = audio; waiting = false; error = nil
-            duration = book.segments.reduce(0) { $0 + $1.duration }
-            if autoplay { play() } else { updateNowPlaying() }
-        } catch { self.error = error.localizedDescription; playing = false }
+   private func load(seconds: Double = 0, autoplay: Bool) {
+    guard let id = bookID,
+          let book = library.book(id),
+          book.segments.indices.contains(segment) else {
+        error = "PLAYER 01: Buch oder Audioabschnitt wurde nicht gefunden."
+        playing = false
+        return
     }
+
+    player?.stop()
+    player = nil
+
+    let item = book.segments[segment]
+
+    guard let filename = item.audioFile else {
+        playing = false
+        waiting = autoplay
+
+        error = item.speaker == nil
+            ? "PLAYER 02: Für diesen Abschnitt wurde noch kein Sprecher festgelegt."
+            : "PLAYER 03: Für diesen Abschnitt existiert noch keine Audiodatei."
+
+        return
+    }
+
+    let url = AppFiles.book(id).appendingPathComponent(filename)
+
+    guard FileManager.default.fileExists(atPath: url.path) else {
+        error = """
+        PLAYER 04: Die gespeicherte Audiodatei wurde nicht gefunden.
+
+        Datei: \(filename)
+        Abschnitt: \(segment + 1) von \(book.segments.count)
+        """
+        playing = false
+        waiting = false
+        return
+    }
+
+    let data: Data
+
+    do {
+        data = try AudioVault.read(url)
+    } catch {
+        self.error = """
+        PLAYER 05: Die Audiodatei konnte nicht aus dem RomanVoice-Speicher gelesen oder entschlüsselt werden.
+
+        Datei: \(filename)
+        Abschnitt: \(segment + 1) von \(book.segments.count)
+
+        Fehler: \(String(reflecting: error))
+        """
+        playing = false
+        waiting = false
+        return
+    }
+
+    guard !data.isEmpty else {
+        error = """
+        PLAYER 06: Die Audiodatei ist leer.
+
+        Datei: \(filename)
+        Abschnitt: \(segment + 1) von \(book.segments.count)
+        """
+        playing = false
+        waiting = false
+        return
+    }
+
+    do {
+        let audio = try AVAudioPlayer(data: data)
+
+        audio.delegate = self
+        audio.enableRate = true
+        audio.rate = book.playbackRate
+        audio.currentTime = min(
+            seconds,
+            max(0, audio.duration - 0.05)
+        )
+
+        player = audio
+        waiting = false
+        error = nil
+
+        duration = book.segments.reduce(0) {
+            $0 + $1.duration
+        }
+
+        if autoplay {
+            play()
+        } else {
+            updateNowPlaying()
+        }
+
+    } catch {
+        self.error = """
+        PLAYER 07: RomanVoice hat die Audiodaten gefunden und gelesen, aber iOS kann sie nicht als Audio öffnen.
+
+        Datei: \(filename)
+        Abschnitt: \(segment + 1) von \(book.segments.count)
+        Datenmenge: \(data.count) Bytes
+
+        Fehler: \(String(reflecting: error))
+        """
+
+        playing = false
+        waiting = false
+    }
+}
     func play() {
         transientPosition = false
         guard let player else { if bookID != nil { load(autoplay: true) }; return }
