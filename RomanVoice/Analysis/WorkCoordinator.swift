@@ -2,9 +2,7 @@ import Foundation
 import Combine
 import UserNotifications
 
-@MainActor
-final class WorkCoordinator: ObservableObject {
-
+@MainActor final class WorkCoordinator: ObservableObject {
     @Published var activeID: UUID?
     @Published var activity = ""
     @Published var progress: Double = 0
@@ -25,12 +23,19 @@ final class WorkCoordinator: ObservableObject {
         self.model = model
     }
 
+    // MARK: - Hörspiel / KI-Analyse
+
     func analyze(_ id: UUID) {
         guard activeID == nil else { return }
+        guard let currentBook = library.book(id) else { return }
+
+        guard currentBook.audioMode != .audiobook else {
+            library.error = "Für ein Hörbuch ist keine KI-Analyse erforderlich."
+            return
+        }
 
         guard model.ready else {
-            library.error =
-                "Bitte zuerst die kostenlose KI unter Einstellungen herunterladen."
+            library.error = "Bitte zuerst die kostenlose KI unter Einstellungen herunterladen."
             return
         }
 
@@ -60,44 +65,21 @@ final class WorkCoordinator: ObservableObject {
             }
 
             do {
-                guard let initial = library.book(id) else {
-                    return
-                }
+                guard let initial = library.book(id) else { return }
 
-                let groups = TextStructure.batches(
-                    initial.segments
-                )
+                let groups = TextStructure.batches(initial.segments)
 
                 for group in groups {
                     try Task.checkCancellation()
 
-                    guard var book = library.book(id) else {
-                        return
-                    }
+                    guard var book = library.book(id) else { return }
 
-                    /*
-                     Eindeutig erkannte Sprecher dürfen als bereits
-                     analysiert gelten, wenn ihr Geschlecht bekannt ist.
-
-                     "Erzähler" ist dagegen bei der Vorstrukturierung
-                     nur eine vorläufige Zuordnung und wird NICHT
-                     automatisch übersprungen.
-                     */
                     for index in group {
-                        let segment = book.segments[index]
-
-                        guard
-                            let name = segment.speaker,
-                            name != "Erzähler",
-                            let role = book.characters.first(
-                                where: { $0.name == name }
-                            ),
-                            role.gender != .unknown
-                        else {
-                            continue
+                        if let name = book.segments[index].speaker,
+                           let role = book.characters.first(where: { $0.name == name }),
+                           role.gender != .unknown {
+                            book.segments[index].analyzed = true
                         }
-
-                        book.segments[index].analyzed = true
                     }
 
                     let pending = group.filter {
@@ -110,18 +92,14 @@ final class WorkCoordinator: ObservableObject {
                     }
 
                     activity =
-                        "Text und Sprecher prüfen · Abschnitt " +
-                        "\((group.first ?? 0) + 1) von " +
-                        "\(book.segments.count)"
+                        "Sprecher prüfen · Abschnitt \((group.first ?? 0) + 1) von \(book.segments.count)"
 
                     do {
-                        let prompt = try LocalEngine.prompt(
-                            book: book,
-                            indices: group
-                        )
-
                         let response = try await engine.generate(
-                            prompt,
+                            LocalEngine.prompt(
+                                book: book,
+                                indices: group
+                            ),
                             modelURL: model.url
                         )
 
@@ -129,189 +107,77 @@ final class WorkCoordinator: ObservableObject {
 
                         book = library.book(id) ?? book
 
-                        let answer = try LocalEngine.decode(
-                            response
-                        )
+                        let answer = try LocalEngine.decode(response)
 
-                        let assignments = Dictionary(
-                            uniqueKeysWithValues:
-                                answer.assignments.map {
-                                    ($0.index, $0)
-                                }
-                        )
+                        for assignment in answer.assignments
+                        where pending.contains(assignment.index) {
 
-                        for index in pending {
-                            guard book.segments.indices.contains(index)
+                            let name = assignment.speaker?
+                                .trimmingCharacters(
+                                    in: .whitespacesAndNewlines
+                                )
+
+                            guard assignment.confidence >= 0.8 else {
+                                continue
+                            }
+
+                            guard let name,
+                                  !name.isEmpty,
+                                  name != "UNGEKLÄRT",
+                                  name != "Erzähler"
                             else {
                                 continue
                             }
 
-                            guard let assignment =
-                                    assignments[index]
+                            guard
+                                book.text.localizedCaseInsensitiveContains(name) ||
+                                book.characters.contains(where: { $0.name == name })
                             else {
-                                book.segments[index].error =
-                                    "Die lokale KI hat für diesen Abschnitt keine Zuordnung geliefert."
                                 continue
                             }
 
-                            guard assignment.confidence >= 0.8
-                            else {
-                                /*
-                                 Unsichere Ergebnisse werden nicht
-                                 als sichere Sprecherentscheidung
-                                 übernommen.
-
-                                 Bei bereits erkanntem Dialog wird
-                                 der Sprecher bewusst offengelassen,
-                                 damit später eine Benutzerentscheidung
-                                 möglich bleibt.
-                                 */
-                                if book.segments[index].dialogue {
-                                    book.segments[index].speaker = nil
-                                }
-
-                                book.segments[index].error =
-                                    "Sprecher oder Textart nicht sicher erkannt."
-                                book.segments[index].analyzed = true
+                            if let explicit = book.segments[assignment.index].speaker,
+                               explicit != name {
                                 continue
                             }
 
-                            let isDialogue =
-                                assignment.dialogue
-                                ?? book.segments[index].dialogue
+                            book.segments[assignment.index].speaker = name
 
-                            book.segments[index].dialogue =
-                                isDialogue
+                            let gender: Gender =
+                                assignment.gender == "male"
+                                ? .male
+                                : assignment.gender == "female"
+                                ? .female
+                                : .unknown
 
-                            if !isDialogue {
-                                /*
-                                 Qwen bestätigt Erzählertext.
-                                 */
-                                book.segments[index].speaker =
-                                    "Erzähler"
-                                book.segments[index].error = nil
-                                book.segments[index].analyzed = true
-                                continue
-                            }
-
-                            /*
-                             Qwen bestätigt bzw. erkennt Dialog.
-                             */
-                            let proposedName =
-                                assignment.speaker?
-                                    .trimmingCharacters(
-                                        in: .whitespacesAndNewlines
+                            if !book.characters.contains(where: { $0.name == name }) {
+                                book.characters.append(
+                                    CharacterRole(
+                                        name: name,
+                                        gender: gender,
+                                        firstOffset:
+                                            book.segments[assignment.index].offset
                                     )
-
-                            let explicitSpeaker: String? = {
-                                let current =
-                                    book.segments[index].speaker
-
-                                guard
-                                    let current,
-                                    current != "Erzähler",
-                                    !current.isEmpty
-                                else {
-                                    return nil
-                                }
-
-                                return current
-                            }()
-
-                            if let explicitSpeaker {
-                                /*
-                                 Eine deterministisch erkannte
-                                 Zuordnung wie "sagte Anna" bleibt
-                                 verbindlich.
-                                 */
-                                if
-                                    let proposedName,
-                                    !proposedName.isEmpty,
-                                    proposedName != "UNGEKLÄRT",
-                                    proposedName != explicitSpeaker
-                                {
-                                    book.segments[index].error =
-                                        "KI-Zuordnung widerspricht einem eindeutigen Sprecherhinweis."
-                                } else {
-                                    book.segments[index].error = nil
-                                }
-
-                                updateCharacter(
-                                    named: explicitSpeaker,
-                                    genderText:
-                                        assignment.gender,
-                                    segmentIndex: index,
-                                    book: &book
                                 )
-
-                                book.segments[index].speaker =
-                                    explicitSpeaker
-                                book.segments[index].analyzed = true
-                                continue
+                            } else if let role = book.characters.firstIndex(
+                                where: { $0.name == name }
+                            ),
+                            book.characters[role].gender == .unknown {
+                                book.characters[role].gender = gender
                             }
-
-                            guard
-                                let name = proposedName,
-                                !name.isEmpty,
-                                name != "UNGEKLÄRT",
-                                name != "Erzähler"
-                            else {
-                                book.segments[index].speaker = nil
-                                book.segments[index].error =
-                                    "Dialog erkannt, Sprecher aber nicht sicher bestimmt."
-                                book.segments[index].analyzed = true
-                                continue
-                            }
-
-                            /*
-                             Keine von Qwen erfundenen Figuren
-                             übernehmen. Der Name muss entweder
-                             im Roman vorkommen oder bereits als
-                             Figur bekannt sein.
-                             */
-                            guard
-                                book.text.localizedCaseInsensitiveContains(
-                                    name
-                                )
-                                ||
-                                book.characters.contains(
-                                    where: { $0.name == name }
-                                )
-                            else {
-                                book.segments[index].speaker = nil
-                                book.segments[index].error =
-                                    "Dialog erkannt, Sprechername aber nicht im Roman belegt."
-                                book.segments[index].analyzed = true
-                                continue
-                            }
-
-                            book.segments[index].speaker = name
-                            book.segments[index].error = nil
-
-                            updateCharacter(
-                                named: name,
-                                genderText: assignment.gender,
-                                segmentIndex: index,
-                                book: &book
-                            )
-
-                            book.segments[index].analyzed = true
                         }
 
                     } catch {
                         try Task.checkCancellation()
 
-                        /*
-                         Bei einem echten KI-/Decode-Fehler bleiben
-                         die Segmente offen. Sie werden NICHT mehr
-                         fälschlich als fertig analysiert markiert.
-                         Dadurch kann Resume sie erneut versuchen.
-                         */
                         for index in pending {
                             book.segments[index].error =
                                 error.localizedDescription
-                            book.segments[index].analyzed = false
                         }
+                    }
+
+                    for index in pending {
+                        book.segments[index].analyzed = true
                     }
 
                     countRoles(&book)
@@ -321,9 +187,7 @@ final class WorkCoordinator: ObservableObject {
                     progress = book.analysisProgress
                 }
 
-                guard var finished = library.book(id) else {
-                    return
-                }
+                guard var finished = library.book(id) else { return }
 
                 countRoles(&finished)
                 VoiceCatalog.suggest(&finished)
@@ -334,18 +198,16 @@ final class WorkCoordinator: ObservableObject {
                 try library.save(finished)
 
                 progress = 1
-                activity =
-                    "Analyse abgeschlossen · Stimmen prüfen"
+                activity = "Analyse abgeschlossen · Stimmen prüfen"
 
                 notify(
                     id: id.uuidString + "review",
                     title: "Analyse abgeschlossen",
-                    body:
-                        "Bitte Stimmen und offene Zuordnungen prüfen."
+                    body: "Bitte Stimmen und offene Zuordnungen prüfen."
                 )
 
             } catch is CancellationError {
-                // Checkpoint bleibt erhalten.
+                // Zustand wurde bereits durch stop() gespeichert.
             } catch {
                 fail(
                     id,
@@ -353,44 +215,6 @@ final class WorkCoordinator: ObservableObject {
                     error: error
                 )
             }
-        }
-    }
-
-    private func updateCharacter(
-        named name: String,
-        genderText: String?,
-        segmentIndex: Int,
-        book: inout Novel
-    ) {
-        let gender: Gender
-
-        switch genderText {
-        case "male":
-            gender = .male
-        case "female":
-            gender = .female
-        default:
-            gender = .unknown
-        }
-
-        if let role = book.characters.firstIndex(
-            where: { $0.name == name }
-        ) {
-            if
-                book.characters[role].gender == .unknown,
-                gender != .unknown
-            {
-                book.characters[role].gender = gender
-            }
-        } else {
-            book.characters.append(
-                CharacterRole(
-                    name: name,
-                    gender: gender,
-                    firstOffset:
-                        book.segments[segmentIndex].offset
-                )
-            )
         }
     }
 
@@ -416,19 +240,99 @@ final class WorkCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Hörbuch vorbereiten
+
+    func prepareAudiobook(_ id: UUID) {
+        guard activeID == nil else { return }
+
+        library.update(id) { book in
+            book.audioMode = .audiobook
+
+            if book.chapters.isEmpty {
+                book.chapters =
+                    TextStructure.chapters(book.text)
+            }
+
+            if book.segments.isEmpty {
+                book.segments =
+                    TextStructure.segments(
+                        book.text,
+                        chapters: book.chapters
+                    )
+            }
+
+            var narrator =
+                book.characters.first(where: { $0.isNarrator })
+                ?? CharacterRole(
+                    name: "Erzähler",
+                    isNarrator: true
+                )
+
+            narrator.name = "Erzähler"
+            narrator.isNarrator = true
+            narrator.appearances = book.segments.count
+
+            book.characters = [narrator]
+
+            for index in book.segments.indices {
+                book.segments[index].speaker = "Erzähler"
+                book.segments[index].dialogue = false
+                book.segments[index].analyzed = true
+                book.segments[index].error = nil
+            }
+
+            book.phase = .review
+            book.interruptedPhase = nil
+            book.explicitStop = false
+            book.error = nil
+        }
+    }
+
+    func setAudiobookVoice(
+        _ id: UUID,
+        choice: VoiceChoice
+    ) {
+        library.update(id) { book in
+            if let narrator =
+                book.characters.firstIndex(
+                    where: { $0.isNarrator }
+                ) {
+                book.characters[narrator].voice = choice
+            } else {
+                var narrator = CharacterRole(
+                    name: "Erzähler",
+                    isNarrator: true
+                )
+                narrator.voice = choice
+                book.characters = [narrator]
+            }
+
+            book.voicesConfirmed = true
+            book.phase = .review
+            book.error = nil
+        }
+    }
+
+    // MARK: - Audio erzeugen
+
     func render(_ id: UUID) {
-        guard
-            activeID == nil,
-            var book = library.book(id)
+        guard activeID == nil,
+              var book = library.book(id)
         else {
             return
+        }
+
+        if book.audioMode == .audiobook {
+            prepareAudiobookForRendering(&book)
         }
 
         guard book.characters.allSatisfy({
             $0.voice != nil
         }) else {
             library.error =
-                "Bitte allen Figuren und dem Erzähler eine Stimme zuweisen."
+                book.audioMode == .audiobook
+                ? "Bitte zuerst eine Stimme für das Hörbuch auswählen."
+                : "Bitte allen Figuren und dem Erzähler eine Stimme zuweisen."
             return
         }
 
@@ -445,6 +349,17 @@ final class WorkCoordinator: ObservableObject {
                 )
         }
 
+        // Nach der technischen Aufteilung müssen auch neue
+        // Hörbuch-Segmente eindeutig dem Erzähler gehören.
+        if book.audioMode == .audiobook {
+            for index in book.segments.indices {
+                book.segments[index].speaker = "Erzähler"
+                book.segments[index].dialogue = false
+                book.segments[index].analyzed = true
+                book.segments[index].error = nil
+            }
+        }
+
         book.phase = .rendering
         book.explicitStop = false
         book.error = nil
@@ -457,6 +372,7 @@ final class WorkCoordinator: ObservableObject {
         }
 
         activeID = id
+        activity = "Hörbuch wird vorbereitet …"
 
         task = Task {
             defer {
@@ -473,22 +389,28 @@ final class WorkCoordinator: ObservableObject {
                         return
                     }
 
+                    guard current.segments.indices.contains(index)
+                    else {
+                        continue
+                    }
+
                     let item =
                         current.segments[index]
 
                     if item.audioFile != nil {
+                        progress =
+                            current.audioProgress
                         continue
                     }
 
-                    guard
-                        let speaker = item.speaker,
-                        let voice =
-                            current.characters.first(
-                                where: {
-                                    $0.name == speaker
-                                }
-                            )?.voice
-                    else {
+                    let speaker: String
+
+                    if current.audioMode == .audiobook {
+                        speaker = "Erzähler"
+                    } else if let assigned =
+                                item.speaker {
+                        speaker = assigned
+                    } else {
                         current.phase = .review
                         current.interruptedPhase =
                             .rendering
@@ -511,10 +433,29 @@ final class WorkCoordinator: ObservableObject {
                         return
                     }
 
+                    guard let voice =
+                        current.characters
+                            .first(
+                                where: {
+                                    $0.name == speaker
+                                }
+                            )?
+                            .voice
+                    else {
+                        current.phase = .review
+                        current.interruptedPhase =
+                            .rendering
+
+                        try library.save(current)
+
+                        activity =
+                            "Stimmenauswahl erforderlich"
+
+                        return
+                    }
+
                     activity =
-                        "Hörbuch erstellen · Abschnitt " +
-                        "\(index + 1) von " +
-                        "\(current.segments.count)"
+                        "Hörbuch erstellen · Abschnitt \(index + 1) von \(current.segments.count)"
 
                     let text =
                         PronunciationEngine.apply(
@@ -532,7 +473,13 @@ final class WorkCoordinator: ObservableObject {
                     try Task.checkCancellation()
 
                     current =
-                        library.book(id) ?? current
+                        library.book(id) ??
+                        current
+
+                    guard current.segments.indices.contains(index)
+                    else {
+                        continue
+                    }
 
                     let filename =
                         item.id.uuidString +
@@ -542,13 +489,14 @@ final class WorkCoordinator: ObservableObject {
                         data,
                         at:
                             AppFiles.book(id)
-                                .appendingPathComponent(
-                                    filename
-                                )
+                            .appendingPathComponent(
+                                filename
+                            )
                     )
 
                     current.segments[index].audioFile =
                         filename
+
                     current.segments[index].duration =
                         duration
 
@@ -566,11 +514,10 @@ final class WorkCoordinator: ObservableObject {
 
                     audioChanged?()
 
-                    if
-                        previousDuration < 600 &&
+                    if previousDuration < 600 &&
                         previousDuration +
-                            duration >= 600
-                    {
+                        duration >= 600 {
+
                         notify(
                             id:
                                 id.uuidString +
@@ -586,10 +533,12 @@ final class WorkCoordinator: ObservableObject {
                 library.update(id) {
                     $0.phase = .ready
                     $0.interruptedPhase = nil
+                    $0.explicitStop = false
                 }
 
                 activity =
                     "Hörbuch vollständig erstellt"
+
                 progress = 1
 
                 notify(
@@ -613,43 +562,98 @@ final class WorkCoordinator: ObservableObject {
         }
     }
 
+    private func prepareAudiobookForRendering(
+        _ book: inout Novel
+    ) {
+        var narrator =
+            book.characters.first(
+                where: { $0.isNarrator }
+            )
+            ?? CharacterRole(
+                name: "Erzähler",
+                isNarrator: true
+            )
+
+        narrator.name = "Erzähler"
+        narrator.isNarrator = true
+        narrator.appearances =
+            book.segments.count
+
+        book.characters = [narrator]
+
+        for index in book.segments.indices {
+            book.segments[index].speaker =
+                "Erzähler"
+
+            book.segments[index].dialogue =
+                false
+
+            book.segments[index].analyzed =
+                true
+
+            book.segments[index].error = nil
+        }
+    }
+
+    // MARK: - Pause / Abbruch / Fortsetzen
+
     func stop(explicit: Bool) {
         guard let id = activeID else {
             return
         }
 
         library.update(id) { book in
-            book.interruptedPhase = book.phase
+            book.interruptedPhase =
+                book.phase
+
             book.explicitStop = explicit
+
             book.phase =
-                explicit ? .cancelled : .paused
+                explicit
+                ? .cancelled
+                : .paused
         }
 
         task?.cancel()
         engine.cancel()
         renderer.cancel()
 
-        activity = explicit
+        activity =
+            explicit
             ? "Abgebrochen · gespeicherte Schritte bleiben erhalten"
             : "Pausiert · Checkpoint gesichert"
     }
 
     func resume(_ id: UUID) {
-        guard
-            activeID == nil,
-            let book = library.book(id)
+        guard activeID == nil,
+              let book = library.book(id)
         else {
             return
         }
 
-        if
-            book.interruptedPhase == .rendering ||
-            book.phase == .rendering
-        {
+        if book.interruptedPhase == .rendering ||
+            book.phase == .rendering {
+
             render(id)
-        } else {
-            analyze(id)
+            return
         }
+
+        if book.audioMode == .audiobook {
+            // Ein Hörbuch darf niemals versehentlich
+            // in die Qwen-Analyse geschickt werden.
+            if book.voicesConfirmed {
+                render(id)
+            } else {
+                library.update(id) {
+                    $0.phase = .review
+                    $0.interruptedPhase = nil
+                }
+            }
+
+            return
+        }
+
+        analyze(id)
     }
 
     func resumeAutomatic() {
@@ -662,17 +666,19 @@ final class WorkCoordinator: ObservableObject {
             return
         }
 
-        if let book = library.books.first(
-            where: {
-                !$0.explicitStop &&
-                [
-                    .analyzing,
-                    .rendering,
-                    .paused,
-                    .failed
-                ].contains($0.phase)
-            }
-        ) {
+        if let book =
+            library.books.first(
+                where: {
+                    !$0.explicitStop &&
+                    [
+                        .analyzing,
+                        .rendering,
+                        .paused,
+                        .failed
+                    ].contains($0.phase)
+                }
+            ) {
+
             resume(book.id)
         }
     }
@@ -680,10 +686,15 @@ final class WorkCoordinator: ObservableObject {
     func setForeground(_ value: Bool) {
         foreground = value
 
+        // WICHTIG:
+        // Beim Wechsel in den Hintergrund brechen wir
+        // die Verarbeitung NICHT mehr selbst ab.
+        //
+        // iOS kann die Ausführung später trotzdem
+        // anhalten. Der gespeicherte Checkpoint bleibt
+        // dann erhalten.
         if value {
             resumeAutomatic()
-        } else {
-            stop(explicit: false)
         }
     }
 
@@ -701,14 +712,15 @@ final class WorkCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Aussprache
+
     func pronunciation(
         _ id: UUID,
         rule: Pronunciation,
         regenerate: Bool
     ) {
-        guard
-            activeID == nil,
-            var book = library.book(id)
+        guard activeID == nil,
+              var book = library.book(id)
         else {
             library.error =
                 "Bitte die laufende Verarbeitung zuerst pausieren."
@@ -722,29 +734,35 @@ final class WorkCoordinator: ObservableObject {
         book.pronunciation.append(rule)
 
         if regenerate {
-            for i in book.segments.indices
-            where book.segments[i].text.contains(
-                rule.word
-            ) {
+            for index in book.segments.indices
+            where book.segments[index]
+                .text
+                .contains(rule.word) {
+
                 if let filename =
-                    book.segments[i].audioFile
-                {
+                    book.segments[index]
+                        .audioFile {
+
                     try? FileManager.default
                         .removeItem(
                             at:
                                 AppFiles.book(id)
-                                    .appendingPathComponent(
-                                        filename
-                                    )
+                                .appendingPathComponent(
+                                    filename
+                                )
                         )
                 }
 
-                book.segments[i].audioFile = nil
-                book.segments[i].duration = 0
+                book.segments[index]
+                    .audioFile = nil
+
+                book.segments[index]
+                    .duration = 0
             }
 
             book.phase = .review
-            book.interruptedPhase = .rendering
+            book.interruptedPhase =
+                .rendering
         }
 
         do {
@@ -759,6 +777,8 @@ final class WorkCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Fehler / Benachrichtigungen
+
     private func fail(
         _ id: UUID,
         phase: WorkPhase,
@@ -767,10 +787,12 @@ final class WorkCoordinator: ObservableObject {
         library.update(id) {
             $0.phase = .failed
             $0.interruptedPhase = phase
-            $0.error = error.localizedDescription
+            $0.error =
+                error.localizedDescription
         }
 
-        activity = error.localizedDescription
+        activity =
+            error.localizedDescription
     }
 
     private func notify(
@@ -789,12 +811,13 @@ final class WorkCoordinator: ObservableObject {
         content.title = title
         content.body = body
 
-        UNUserNotificationCenter.current().add(
-            UNNotificationRequest(
-                identifier: id,
-                content: content,
-                trigger: nil
+        UNUserNotificationCenter.current()
+            .add(
+                UNNotificationRequest(
+                    identifier: id,
+                    content: content,
+                    trigger: nil
+                )
             )
-        )
     }
 }
