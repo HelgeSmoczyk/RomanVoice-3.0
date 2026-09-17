@@ -760,3 +760,58 @@ struct RootView: View {
         book.voicesConfirmed = false
     }
 }
+struct ConstructionView: View {
+    let title: String
+    let subtitle: String
+    let back: () -> Void
+
+    init(
+        title: String = "Hier wird gebaut",
+        subtitle: String = "Dieser Bereich ist noch nicht fertig.",
+        back: @escaping () -> Void
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.back = back
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PageHeader(
+                title: title,
+                subtitle: "RomanVoice 3.0"
+            ) {
+                back()
+            }
+
+            Spacer()
+
+            RomanPanel {
+                VStack(spacing: 22) {
+                    Image(systemName: "hammer.fill")
+                        .font(.system(size: 54, weight: .semibold))
+                        .foregroundStyle(.orange)
+
+                    Text(title)
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+
+                    Text(subtitle)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+
+                    Text(
+                        "WIRD GEBAUT · UNDER CONSTRUCTION · WIRD GEBAUT · UNDER CONSTRUCTION"
+                    )
+                    .font(.caption.bold())
+                    .multilineTextAlignment(.center)
+                    .rotationEffect(.degrees(-3))
+                }
+                .padding()
+            }
+            .padding(.horizontal, 18)
+
+            Spacer()
+        }
+    }
+}
