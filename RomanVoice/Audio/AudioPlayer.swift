@@ -73,7 +73,12 @@ import Combine
         return
     }
 
-    let url = AppFiles.book(id).appendingPathComponent(filename)
+    guard let url = try? AppFiles.book(id).appendingPathComponent(filename) else {
+    error = "PLAYER 04A: Der Speicherordner des Hörbuchs konnte nicht geöffnet werden."
+    playing = false
+    waiting = false
+    return
+}
 
     guard FileManager.default.fileExists(atPath: url.path) else {
         error = """
