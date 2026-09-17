@@ -29,7 +29,7 @@ struct RootView: View {
     @EnvironmentObject var model: ModelManager
     @EnvironmentObject var work: WorkCoordinator
     @EnvironmentObject var player: AudioPlayer
-    @Environment(.scenePhase) private var phase
+    @Environment(\.scenePhase) private var phase
 
     @State private var menu = false
     @State private var importing = false
