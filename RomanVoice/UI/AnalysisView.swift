@@ -16,16 +16,12 @@ struct AnalysisView: View {
                 AudiobookSetupView(id: id)
 
             case .radioPlay:
-                ConstructionView(
-                    title: "Hörspiel",
-                    message:
-                        "Die Hörspiel-Analyse wird neu aufgebaut."
-                ) {
-                    navigation.go(
-                        .detail(id),
-                        room: .library
-                    )
-                }
+    ConstructionView(
+        title: "Hörspiel",
+        subtitle: "Die Hörspiel-Analyse mit Qwen wird gerade neu aufgebaut."
+    ) {
+        navigation.go(.detail(id), room: .library)
+    }
 
             case nil:
                 LegacyAnalysisView(id: id)
