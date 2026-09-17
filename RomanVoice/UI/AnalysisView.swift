@@ -203,9 +203,7 @@ private struct AudiobookSetupView: View {
                     .padding(.bottom, 20)
                 }
             }
-            .onAppear {
-                work.prepareAudiobook(id)
-            }
+            
             .onDisappear {
                 synthesizer.stopSpeaking(
                     at: .immediate
