@@ -37,10 +37,17 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project RomanVoice.xcodeproj -scheme RomanVoice -destination "id=$SIMULATOR_ID" -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO test | tee tests.log
+
+      - name: Alte Build-Artefakte löschen
+        run: |
+          rm -rf build
+          rm -rf output
+
       - name: RomanVoice für iPhone bauen
         run: |
           set -o pipefail
           xcodebuild -project RomanVoice.xcodeproj -scheme RomanVoice -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' build | tee build.log
+
       - name: IPA für Sideloadly vorbereiten
         run: |
           mkdir -p output/Payload
