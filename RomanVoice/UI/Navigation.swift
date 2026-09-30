@@ -1,372 +1,308 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-// MARK: - Navigation
+// MARK: - RomanVoice Navigation
 
-enum Screen: Equatable {
-    case home
-    case library(Intent)
-    case detail(UUID)
-    case analyze(UUID)
-    case reader(UUID, Int?, Bool)
-    case player(UUID)
-    case settings
-    case room(RomanVoiceRoom)
-}
+struct RomanVoiceNavigationView: View {
 
-enum RomanVoiceRoom: String, Equatable, CaseIterable {
-    case library = "BIBLIOTHEK"
-    case reading = "LESEN"
-    case listening = "HÖREN"
-    case importing = "IMPORTIEREN"
-
-    var buttonAsset: String {
-        switch self {
-        case .library: return "RomanVoice_Icon_Bibliothek"
-        case .reading: return "RomanVoice_Icon_Lesen"
-        case .listening: return "RomanVoice_Icon_Hoeren"
-        case .importing: return "RomanVoice_Icon_Importieren"
-        }
-    }
-
-    var buttonTitle: String {
-        switch self {
-        case .library: return "Bibliothek"
-        case .reading: return "Lesen"
-        case .listening: return "Hören"
-        case .importing: return "Importieren"
+    var body: some View {
+        NavigationStack {
+            RomanVoiceStartView()
         }
     }
 }
 
-@MainActor
-final class Navigation: ObservableObject {
-    @Published var screen: Screen = .home
-    @Published var room: Room = .salon
 
-    func go(_ screen: Screen, room: Room = .salon) {
-        withAnimation(.easeInOut(duration: 0.35)) {
-            self.room = room
-            self.screen = screen
-        }
-    }
+// MARK: - Startplatz / Salon
 
-    func goHome() {
-        go(.home, room: .salon)
-    }
-
-    func goToRoom(_ destination: RomanVoiceRoom) {
-        go(.room(destination), room: .salon)
-    }
-}
-
-// MARK: - Root
-
-struct RootView: View {
-    @EnvironmentObject private var navigation: Navigation
-
-    @State private var showMenu = false
-    @State private var showImprint = false
+struct RomanVoiceStartView: View {
 
     var body: some View {
         ZStack {
-            switch navigation.screen {
-            case .home:
-                RomanVoiceStartScreen(
-                    showMenu: $showMenu,
-                    showImprint: $showImprint
-                )
 
-            case .room(let destination):
-                RomanVoiceDeadEndScreen(destination: destination)
+            // Salon als vollflächiger Hintergrund
+            Image("Salon")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
 
-            case .settings:
-                SettingsView()
+            VStack(spacing: 0) {
 
-            // Die vorhandenen Programmteile bleiben kompilierbar,
-            // werden auf diesem ersten Startplatz aber bewusst noch nicht benutzt.
-            case .library, .detail, .analyze, .reader, .player:
-                RomanVoiceDeadEndScreen(destination: .library)
-            }
-        }
-        .sheet(isPresented: $showMenu) {
-            RomanVoiceMenu(showMenu: $showMenu)
-        }
-        .sheet(isPresented: $showImprint) {
-            RomanVoiceImprint(showImprint: $showImprint)
-        }
-        .foregroundStyle(RomanStyle.cream)
-        .tint(RomanStyle.gold)
-    }
-}
+                // MARK: Oberer Bereich
 
-// MARK: - Startplatz
+                HStack {
 
-private struct RomanVoiceStartScreen: View {
-    @EnvironmentObject private var navigation: Navigation
+                    // Hamburger
+                    Button {
+                        // Funktion kommt später
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 25, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 48, height: 48)
+                            .background(.black.opacity(0.35))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Menü")
+                    .accessibilityIdentifier("Menü")
 
-    @Binding var showMenu: Bool
-    @Binding var showImprint: Bool
+                    Spacer()
 
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                salonBackground
+                    // Einstellungen
+                    Button {
+                        // Funktion kommt später
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 48, height: 48)
+                            .background(.black.opacity(0.35))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Einstellungen")
+                    .accessibilityIdentifier("Einstellungen")
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 10)
 
-                // RomanVoice-Logo im Fensterbereich.
+                // MARK: RomanVoice Logo
+
                 Image("RomanVoiceLogo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: min(geometry.size.width * 0.62, 310))
-                    .position(
-                        x: geometry.size.width * 0.50,
-                        y: geometry.size.height * 0.18
-                    )
+                    .frame(maxWidth: 270)
+                    .padding(.top, 8)
                     .accessibilityHidden(true)
 
-                // Die vier funktionalen Schaltflächen.
-                roomButton(.library, x: 0.22, y: 0.34, size: geometry.size)
-                roomButton(.reading, x: 0.25, y: 0.59, size: geometry.size)
-                roomButton(.listening, x: 0.77, y: 0.48, size: geometry.size)
-                roomButton(.importing, x: 0.58, y: 0.76, size: geometry.size)
+                Spacer()
 
-                // Hamburger und Einstellungen.
-                VStack {
-                    HStack {
-                        Button {
-                            showMenu = true
-                        } label: {
-                            Image(systemName: "line.3.horizontal")
-                                .font(.system(size: 24, weight: .semibold))
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(RomanGlassButton())
-                        .accessibilityLabel("Menü")
+                // MARK: Vier Hauptwege
 
-                        Spacer()
+                HStack(alignment: .bottom, spacing: 10) {
 
-                        Button {
-                            navigation.go(.settings, room: .settings)
-                        } label: {
-                            Image(systemName: "gearshape")
-                                .font(.system(size: 23, weight: .semibold))
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(RomanGlassButton())
-                        .accessibilityLabel("Einstellungen")
+                    NavigationLink {
+                        RomanVoiceRoomView(
+                            roomName: "BIBLIOTHEK"
+                        )
+                    } label: {
+                        RomanVoiceRouteButton(
+                            imageName: "ButtonBibliothek",
+                            title: "Bibliothek"
+                        )
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Bibliothek")
+                    .accessibilityIdentifier("Bibliothek")
 
-                    Spacer()
 
-                    Button("Impressum") {
-                        showImprint = true
+                    NavigationLink {
+                        RomanVoiceRoomView(
+                            roomName: "LESEN"
+                        )
+                    } label: {
+                        RomanVoiceRouteButton(
+                            imageName: "ButtonLesen",
+                            title: "Lesen"
+                        )
                     }
-                    .font(.system(size: 12, weight: .medium, design: .serif))
-                    .foregroundStyle(RomanStyle.cream)
-                    .shadow(color: .black, radius: 4)
-                    .padding(.bottom, 10)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Lesen")
+                    .accessibilityIdentifier("Lesen")
+
+
+                    NavigationLink {
+                        RomanVoiceRoomView(
+                            roomName: "HÖREN"
+                        )
+                    } label: {
+                        RomanVoiceRouteButton(
+                            imageName: "ButtonHoeren",
+                            title: "Hören"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Hören")
+                    .accessibilityIdentifier("Hören")
+
+
+                    NavigationLink {
+                        RomanVoiceRoomView(
+                            roomName: "IMPORTIEREN"
+                        )
+                    } label: {
+                        RomanVoiceRouteButton(
+                            imageName: "ButtonImportieren",
+                            title: "Importieren"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Importieren")
+                    .accessibilityIdentifier("Importieren")
                 }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 20)
+
+                // MARK: Impressum
+
+                Button {
+                    // Impressum wird später angebunden
+                } label: {
+                    Text("Impressum")
+                        .font(.footnote)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(.black.opacity(0.35))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Impressum")
+                .accessibilityIdentifier("Impressum")
+                .padding(.bottom, 12)
             }
         }
-        .ignoresSafeArea()
-    }
-
-    private var salonBackground: some View {
-        Image("Salon")
-            .resizable()
-            .scaledToFill()
-            .ignoresSafeArea()
-            .accessibilityHidden(true)
-    }
-
-    private func roomButton(
-        _ destination: RomanVoiceRoom,
-        x: CGFloat,
-        y: CGFloat,
-        size: CGSize
-    ) -> some View {
-        Button {
-            navigation.goToRoom(destination)
-        } label: {
-            Image(destination.buttonAsset)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 88, height: 88)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(destination.buttonTitle)
-        .position(x: size.width * x, y: size.height * y)
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
-// MARK: - Vier Sackgassen
 
-private struct RomanVoiceDeadEndScreen: View {
-    @EnvironmentObject private var navigation: Navigation
+// MARK: - Hauptschaltflächen
 
-    let destination: RomanVoiceRoom
+private struct RomanVoiceRouteButton: View {
 
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // In jeder Sackgasse exakt derselbe Salon – ohne Start-Schaltflächen.
-                Image("Salon")
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
-                    .accessibilityHidden(true)
-
-                // Raumname an derselben Stelle wie das RomanVoice-Logo.
-                RomanVoiceRoomLogo(title: destination.rawValue)
-                    .frame(width: min(geometry.size.width * 0.76, 350))
-                    .position(
-                        x: geometry.size.width * 0.50,
-                        y: geometry.size.height * 0.18
-                    )
-
-                VStack {
-                    HStack {
-                        Button {
-                            navigation.goHome()
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 24, weight: .semibold))
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(RomanGlassButton())
-                        .accessibilityLabel("Zurück zum Start")
-
-                        Spacer()
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-
-                    Spacer()
-                }
-            }
-        }
-        .ignoresSafeArea()
-    }
-}
-
-// MARK: - Raumname im Stil des RomanVoice-Logos
-
-private struct RomanVoiceRoomLogo: View {
+    let imageName: String
     let title: String
 
     var body: some View {
-        Text(title)
-            .font(.custom("EBGaramond-Regular", size: 39))
-            .fontWeight(.semibold)
-            .tracking(2.2)
-            .minimumScaleFactor(0.55)
-            .lineLimit(1)
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [
-                        RomanStyle.cream,
-                        RomanStyle.gold,
-                        RomanStyle.cream
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
+
+        VStack(spacing: 5) {
+
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 72, maxHeight: 72)
+                .accessibilityHidden(true)
+
+            Text(title)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .shadow(
+                    color: .black.opacity(0.9),
+                    radius: 2,
+                    x: 1,
+                    y: 1
                 )
-            )
-            .shadow(color: .black.opacity(0.95), radius: 2, x: 0, y: 2)
-            .shadow(color: RomanStyle.gold.opacity(0.35), radius: 5)
-            .padding(.horizontal, 8)
-            .accessibilityAddTraits(.isHeader)
-    }
-}
-
-// MARK: - Kleine transparente Bedienelemente
-
-private struct RomanGlassButton: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(RomanStyle.cream)
-            .background(
-                Circle()
-                    .fill(Color.black.opacity(configuration.isPressed ? 0.48 : 0.28))
-            )
-            .overlay(
-                Circle()
-                    .stroke(RomanStyle.gold.opacity(0.65), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.65), radius: 4, y: 2)
-            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
-    }
-}
-
-// MARK: - Hamburger-Menü
-
-private struct RomanVoiceMenu: View {
-    @EnvironmentObject private var navigation: Navigation
-    @Binding var showMenu: Bool
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Button("Start") {
-                    showMenu = false
-                    navigation.goHome()
-                }
-
-                ForEach(RomanVoiceRoom.allCases, id: \.self) { destination in
-                    Button(destination.buttonTitle) {
-                        showMenu = false
-                        navigation.goToRoom(destination)
-                    }
-                }
-
-                Button("Einstellungen") {
-                    showMenu = false
-                    navigation.go(.settings, room: .settings)
-                }
-            }
-            .navigationTitle("RomanVoice")
         }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
     }
 }
 
-// MARK: - Impressum
 
-private struct RomanVoiceImprint: View {
-    @Binding var showImprint: Bool
+// MARK: - Sackgassen / Räume
+
+struct RomanVoiceRoomView: View {
+
+    let roomName: String
+
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                RomanStyle.green.ignoresSafeArea()
 
-                VStack(spacing: 18) {
-                    Text("Impressum")
-                        .font(.custom("EBGaramond-Regular", size: 34))
-                        .foregroundStyle(RomanStyle.gold)
+        ZStack {
 
-                    Text("RomanVoice 3.0")
-                        .font(.system(.body, design: .serif))
-                        .foregroundStyle(RomanStyle.cream)
+            // Derselbe Salon wie auf dem Startplatz
+            Image("Salon")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
 
-                    Text("Die vollständigen Impressumsangaben werden hier später eingesetzt.")
-                        .font(.system(.footnote, design: .serif))
-                        .foregroundStyle(RomanStyle.cream.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
+            VStack(spacing: 0) {
+
+                // MARK: Zurück
+
+                HStack {
+
+                    Button {
+                        dismiss()
+                    } label: {
+
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 48, height: 48)
+                            .background(.black.opacity(0.45))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Zurück")
+                    .accessibilityIdentifier("Zurück")
 
                     Spacer()
                 }
-                .padding(.top, 35)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fertig") {
-                        showImprint = false
-                    }
-                }
+                .padding(.horizontal, 18)
+                .padding(.top, 10)
+
+                // MARK: Raumname an Position des RomanVoice-Logos
+
+                RomanVoiceRoomTitle(
+                    title: roomName
+                )
+                .padding(.top, 8)
+
+                Spacer()
             }
         }
+        .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+
+// MARK: - Raumtitel
+
+private struct RomanVoiceRoomTitle: View {
+
+    let title: String
+
+    var body: some View {
+
+        Text(title)
+            .font(
+                .system(
+                    size: title == "IMPORTIEREN" ? 29 : 38,
+                    weight: .bold,
+                    design: .serif
+                )
+            )
+            .tracking(2.5)
+            .foregroundStyle(.white)
+            .shadow(
+                color: .black.opacity(0.9),
+                radius: 4,
+                x: 1,
+                y: 2
+            )
+            .frame(maxWidth: 300)
+            .minimumScaleFactor(0.60)
+            .lineLimit(1)
+            .accessibilityLabel(title)
+            .accessibilityIdentifier(title)
+    }
+}
+
+
+// MARK: - Kompatibler Einstieg
+
+struct ContentView: View {
+
+    var body: some View {
+        RomanVoiceNavigationView()
     }
 }
