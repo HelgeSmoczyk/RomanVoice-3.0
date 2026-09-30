@@ -1,32 +1,31 @@
 # RomanVoice 3.0 – gespeicherter Arbeitsstand
 
-Stand: 30. September 2026. Aktueller Startplatz-Teststand, noch keine vollständige App-Abnahme.
+Stand: 16. September 2026. **Zwischenstand, keine abgenommene App.**
 
-## Aktueller Startplatz
+## Verbindliche Grundlage
 
-- Sauberer Salon als gemeinsamer Hintergrund.
-- Vier Startbuttons: Bibliothek, Lesen, Hören, Importieren.
-- Hamburger-Menü, Einstellungen und Impressum bleiben erreichbar.
-- Die vier Startbuttons führen aktuell in eigene Sackgassen mit BIBLIOTHEK, LESEN, HÖREN und IMPORTIEREN.
-- Jede Sackgasse besitzt einen eindeutigen `Zurück`-Button.
-- Navigation und UI-Test verwenden dieselben Bezeichnungen.
+`Verbindliche-Masterliste.txt` enthält die vollständige übergebene Masterliste. Bei Konflikten gilt die jüngste Festlegung aus dem Gespräch. Die sieben Originalgrafiken liegen unverändert im Assetkatalog; ihre Prüfsummen stehen in `Asset-Manifest.json`. Der Programmcode ist neu erstellt.
 
-## Projektstruktur
+## Vorhanden
 
-Im App-Target liegen aktuell 24 Swift-Quelldateien plus Objective-C++-Brücke für das lokale Modell. `ConstructionView.swift` liegt einmal unter `RomanVoice/ConstructionView.swift`. Der Projekt-Verifier prüft doppelte Swift-Typen, Asset-Prüfsummen, Ressourcen, AppIcon, Startplatz/UI-Test-Vertrag und wesentliche Projektstruktur.
+23 Swift-Dateien sowie eine Objective-C++-Anbindung für das lokale Qwen-Modell: Import, Textstruktur, Analyse, Stimmen, Audiogenerierung, verschlüsselter Audiospeicher, Reader, Player, Bibliothek, Salon, Einstellungen und Animationen. Dazu kommen Unit-Tests, UI-Tests und ein GitHub-Actions-Workflow zum Simulator-Test und zur Erstellung einer unsignierten IPA.
 
-## Letzter korrigierter CI-Fehler
+Diese Aufzählung beschreibt vorhandenen Code, keine nachgewiesene Funktionsfähigkeit.
 
-Der letzte GitHub-Lauf scheiterte bereits in `scripts/verify_project.py`, weil der Prüfer den AppIcon-Metadateinamen ausschließlich als exakt `Contents.json` akzeptierte. GitHub-Webuploads können bei reinen Groß-/Kleinschreibungsänderungen ältere Git-Einträge hinterlassen; auf dem case-insensitiven macOS-Runner kann deshalb `contents.json` sichtbar sein.
+## Zuletzt korrigiert
 
-Der aktuelle Stand ist dagegen abgesichert:
+- Fehlende Projektdefinition für das bereits im Testplan verwendete UI-Testziel ergänzt.
+- Reader-Blättertasten werden zusammen mit den übrigen Steuerelementen ausgeblendet.
 
-- `prepare_dependencies.sh` normalisiert Asset-Metadateien vor der Prüfung auf `Contents.json`.
-- `verify_project.py` findet die Metadatei unabhängig von der gespeicherten Schreibweise, verlangt aber weiterhin genau eine passende Datei und prüft ihren Inhalt vollständig.
-- Der exakte Fehlerfall wurde mit absichtlich kleingeschriebenen Metadateien simuliert und erfolgreich geprüft.
+## Offene Arbeiten, in Reihenfolge
 
-## Prüfung
+1. Statische Prüfung erweitern: alle Build-/Testziele, Quellverzeichnisse, Swift-Syntax, unveränderte Assets und ZIP-Inhalt.
+2. Kapiteländerungen und Positionszuordnung prüfen; PDF-Seiten ohne Verzerrung darstellen.
+3. Alle 50 Punkte der Masterliste mit konkreten Codebelegen und offenen Abnahmeschritten abgleichen. Vorhandener Code allein erfüllt die Abnahme nicht.
+4. Vollständige Typprüfung und Tests mit Xcode durchführen. Auf diesem Windows-Rechner stehen Xcode und iOS-Simulator nicht zur Verfügung. Der GitHub-Workflow ist vorbereitet, noch nicht gelaufen.
+5. Auf einem iPhone insbesondere Salon-Ausschnitt und Hotspots, Animationen, Zoom/Blättern, Positionswechsel, lange Analyse, Unterbrechung/Wiederaufnahme, Modell-Download und Hintergrundaudio prüfen.
+6. Erst nach Fehlerkorrekturen und klar ausgewiesenen Testergebnissen das finale Projekt-ZIP erstellen.
 
-Der aktuelle Paketstand wird zweimal geprüft: einmal vor dem Packen und ein zweites Mal nach Neuverpackung durch erneutes Entpacken der finalen ZIP. Details stehen in `Docs/Pruefbericht.md`.
+## Wiederaufnahme nach Kontingentabbruch
 
-Ein echter Xcode-/Simulatorlauf kann in dieser Umgebung nicht ausgeführt werden und muss durch GitHub Actions bestätigt werden.
+Zuerst diese Datei und `Docs/Pruefbericht.md` lesen. Das neue Projekt liegt vollständig in diesem Ordner. Nicht neu beginnen und keine alten RomanVoice-App-Dateien übernehmen. Gespeicherte Zwischenstände sind keine fertigen Releases. Das vollständige Gespräch und die Eingabedateien bleiben zusätzlich im Arbeitsverzeichnis außerhalb des ZIP gesichert.
