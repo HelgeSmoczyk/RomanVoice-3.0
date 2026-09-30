@@ -10,7 +10,7 @@ Die App wird unabhängig vom alten RomanVoice-Code entwickelt. Die neue Kennung 
 2. Unter **Actions → RomanVoice iOS Build → Run workflow** den Build starten.
 3. Der Workflow lädt die festgelegte llama-Abhängigkeit, erzeugt das Xcode-Projekt, führt Simulator-Tests aus und baut anschließend die iPhone-App.
 4. Bei Erfolg das Artefakt **RomanVoice-3.0-unsigned** herunterladen und entpacken. Die darin enthaltene IPA ist für das Signieren mit Sideloadly vorgesehen.
-5. Bei einem Fehler enthalten die Workflow-Ausgabe und das Artefakt **RomanVoice-Pruefberichte** die Details. Ein erster erfolgreicher Build ist noch nicht nachgewiesen.
+5. Bei einem Fehler enthalten die Workflow-Ausgabe und das Artefakt **RomanVoice-Pruefberichte** die Details. Ein vorausgehender Stand hat GitHub-Build #53 erfolgreich durchlaufen; jede danach geänderte ZIP muss erneut durch GitHub/Xcode bestätigt werden.
 
 Auf einem Mac: `bash scripts/prepare_dependencies.sh`, anschließend `xcodegen generate`, dann `RomanVoice.xcodeproj` mit Xcode öffnen. XcodeGen muss zuvor installiert sein. Mindestziel ist iOS 18.
 
@@ -21,6 +21,6 @@ Die große Modell-Datei gehört nicht ins ZIP. Die App lädt sie bei Bedarf und 
 - `Docs/Arbeitsstand.md`: erledigte und offene Arbeit, Wiederaufnahme nach Unterbrechungen.
 - `Docs/Verbindliche-Masterliste.txt`: vollständige verbindliche Vorgaben.
 - `Docs/Pruefbericht.md`: tatsächlich durchgeführte Prüfungen und Grenzen.
-- `Docs/Asset-Manifest.json`: Prüfsummen der sieben Originalgrafiken.
+- `Docs/Asset-Manifest.json`: Prüfsummen des aktuellen Salons sowie der sechs unveränderten Referenzgrafiken.
 
 Das ZIP enthält Quellcode, echte Grafikassets, Schrift, Lizenzen und Build-Konfiguration. Es enthält weder eine fertig gebaute IPA noch das KI-Modell oder die heruntergeladene llama-Binärbibliothek.

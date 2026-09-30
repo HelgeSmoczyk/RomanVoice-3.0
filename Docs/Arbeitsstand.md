@@ -1,31 +1,33 @@
 # RomanVoice 3.0 – gespeicherter Arbeitsstand
 
-Stand: 16. September 2026. **Zwischenstand, keine abgenommene App.**
+Stand: 30. September 2026. **Aktueller Startplatz-Teststand, noch keine vollständige App-Abnahme.**
 
-## Verbindliche Grundlage
+## Aktueller Master für den Startplatz
 
-`Verbindliche-Masterliste.txt` enthält die vollständige übergebene Masterliste. Bei Konflikten gilt die jüngste Festlegung aus dem Gespräch. Die sieben Originalgrafiken liegen unverändert im Assetkatalog; ihre Prüfsummen stehen in `Asset-Manifest.json`. Der Programmcode ist neu erstellt.
+Gemeinsame räumliche Grundlage ist der neue saubere Salon in `RomanVoice/Assets.xcassets/Salon.imageset/salon_clean.jpeg`. Diese Grafik wurde bewusst gegenüber dem ursprünglichen Referenzasset geändert und ist deshalb im `Docs/Asset-Manifest.json` mit `unchanged: false` sowie ihrer aktuellen SHA-256-Prüfsumme geführt. Die sechs Referenzgrafiken bleiben unverändert.
 
-## Vorhanden
+## Aktueller Startplatz
 
-23 Swift-Dateien sowie eine Objective-C++-Anbindung für das lokale Qwen-Modell: Import, Textstruktur, Analyse, Stimmen, Audiogenerierung, verschlüsselter Audiospeicher, Reader, Player, Bibliothek, Salon, Einstellungen und Animationen. Dazu kommen Unit-Tests, UI-Tests und ein GitHub-Actions-Workflow zum Simulator-Test und zur Erstellung einer unsignierten IPA.
+- RomanVoice-Logo auf dem Salon.
+- Vier funktionale Startbuttons: Bibliothek, Lesen, Hören, Importieren.
+- Hamburger-Menü, Einstellungen und Impressum bleiben erreichbar.
+- Die vier Startbuttons führen derzeit jeweils auf eine eigene Sackgasse mit dem Titel BIBLIOTHEK, LESEN, HÖREN bzw. IMPORTIEREN.
+- Jede Sackgasse besitzt einen eindeutigen `Zurück`-Button zum Startplatz.
+- Die UI-Tests verwenden genau diese Bezeichnungen.
 
-Diese Aufzählung beschreibt vorhandenen Code, keine nachgewiesene Funktionsfähigkeit.
+## Projektstruktur
 
-## Zuletzt korrigiert
+Im App-Target liegen aktuell 24 Swift-Quelldateien plus Objective-C++-Brücke für das lokale Modell. `ConstructionView.swift` liegt genau einmal unter `RomanVoice/ConstructionView.swift`. Der Projekt-Verifier prüft doppelte Swift-Typen, Asset-Prüfsummen, Ressourcen, AppIcon, Startplatz/UI-Test-Vertrag und wesentliche Projektstruktur.
 
-- Fehlende Projektdefinition für das bereits im Testplan verwendete UI-Testziel ergänzt.
-- Reader-Blättertasten werden zusammen mit den übrigen Steuerelementen ausgeblendet.
+## Build-Stand
 
-## Offene Arbeiten, in Reihenfolge
+- Ein vorausgehender Projektstand wurde in GitHub Actions als Build #53 erfolgreich gebaut/getestet.
+- Build #54 stoppte bereits im Projekt-Verifier, weil der neue Salon absichtlich die alte Salon-Prüfsumme ungültig gemacht hatte. Das war kein Swift-Compilerfehler.
+- Die Salon-Prüfsumme und der Verifier sind im aktuellen Paket korrigiert.
+- Der AppIcon-Katalog wurde zusätzlich bereinigt (`Contents.json`, 1024×1024), um die zuvor sichtbare AppIcon-Warnung zu beseitigen.
 
-1. Statische Prüfung erweitern: alle Build-/Testziele, Quellverzeichnisse, Swift-Syntax, unveränderte Assets und ZIP-Inhalt.
-2. Kapiteländerungen und Positionszuordnung prüfen; PDF-Seiten ohne Verzerrung darstellen.
-3. Alle 50 Punkte der Masterliste mit konkreten Codebelegen und offenen Abnahmeschritten abgleichen. Vorhandener Code allein erfüllt die Abnahme nicht.
-4. Vollständige Typprüfung und Tests mit Xcode durchführen. Auf diesem Windows-Rechner stehen Xcode und iOS-Simulator nicht zur Verfügung. Der GitHub-Workflow ist vorbereitet, noch nicht gelaufen.
-5. Auf einem iPhone insbesondere Salon-Ausschnitt und Hotspots, Animationen, Zoom/Blättern, Positionswechsel, lange Analyse, Unterbrechung/Wiederaufnahme, Modell-Download und Hintergrundaudio prüfen.
-6. Erst nach Fehlerkorrekturen und klar ausgewiesenen Testergebnissen das finale Projekt-ZIP erstellen.
+## Prüfung des aktuellen Pakets
 
-## Wiederaufnahme nach Kontingentabbruch
+Das aktuelle Paket wird vor Ausgabe zweimal lokal geprüft: einmal im Arbeitsverzeichnis und ein zweites Mal nach Neuverpackung durch erneutes Entpacken der fertigen ZIP. Details stehen in `Docs/Pruefbericht.md`.
 
-Zuerst diese Datei und `Docs/Pruefbericht.md` lesen. Das neue Projekt liegt vollständig in diesem Ordner. Nicht neu beginnen und keine alten RomanVoice-App-Dateien übernehmen. Gespeicherte Zwischenstände sind keine fertigen Releases. Das vollständige Gespräch und die Eingabedateien bleiben zusätzlich im Arbeitsverzeichnis außerhalb des ZIP gesichert.
+Ein echter Xcode-/Simulatorlauf des neu gepackten Standes kann lokal nicht ausgeführt werden und muss durch den nächsten GitHub-Actions-Lauf bestätigt werden.

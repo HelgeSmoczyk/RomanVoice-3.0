@@ -1,9 +1,9 @@
 [
   {
     "asset": "Salon",
-    "source": "Salon.png",
-    "sha256": "04aa72fb9d6b4c68c8f65ae7d9b6d8e34775f5d7a8b31aa5e7bd498ea3acee4a",
-    "unchanged": true
+    "source": "salon_clean.jpeg",
+    "sha256": "056488ee3994e52f88fcb3e5d41f8ba270cdaf5d1bf5655d47593853f8f73449",
+    "unchanged": false
   },
   {
     "asset": "ReferenceStart",
