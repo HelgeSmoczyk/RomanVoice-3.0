@@ -796,13 +796,13 @@ private struct RomanVoiceDeadEndScreen: View {
                         Spacer()
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 10)
+                    .padding(.top, geometry.safeAreaInsets.top + 8)
 
                     Spacer()
                 }
             }
+            .ignoresSafeArea(edges: .bottom)
         }
-        .ignoresSafeArea()
     }
 }
 
