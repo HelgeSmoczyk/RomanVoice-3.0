@@ -32,6 +32,26 @@ for catalog in catalogs:
             temporary.unlink()
         source.rename(temporary)
         temporary.rename(canonical)
+
+    # GitHub's web uploader adds/replaces files but does not delete older files
+    # that are absent from a new upload. Remove stale, unreferenced payload files
+    # from imagesets/appiconsets before the verifier and actool see them.
+    if catalog.suffix in {".imageset", ".appiconset"}:
+        import json
+        metadata = json.loads(canonical.read_text(encoding="utf-8"))
+        referenced = {
+            item.get("filename")
+            for item in metadata.get("images", [])
+            if item.get("filename")
+        }
+        for entry in catalog.iterdir():
+            if not entry.is_file():
+                continue
+            if entry.name == "Contents.json" or entry.name.startswith("."):
+                continue
+            if entry.name not in referenced:
+                print(f"Entferne veraltete Asset-Datei: {entry}")
+                entry.unlink()
 PY_ASSETS
 
 mkdir -p Vendor

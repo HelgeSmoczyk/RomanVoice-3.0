@@ -48,3 +48,7 @@ Nach dem Packen der finalen ZIP wird genau diese ZIP in ein frisches Verzeichnis
 ## Grenze der lokalen Prüfung
 
 Diese Umgebung ist kein macOS/Xcode-Rechner. Ein echter iOS-Simulatorlauf, `xcodebuild` und die IPA-Erzeugung des finalen Pakets können hier nicht ausgeführt werden. Diese letzte Bestätigung liefert ausschließlich der nächste GitHub-Actions-Lauf.
+
+## CI-Asset-Bereinigung – 30.09.2026
+
+`prepare_dependencies.sh` entfernt vor der Projektprüfung nicht referenzierte Dateien aus `.imageset`- und `.appiconset`-Ordnern. Das ist notwendig, weil GitHub-Webuploads ältere Dateien im Repository nicht automatisch löschen. Ein alter `image.png` neben dem aktuellen `salon_clean.jpeg` kann dadurch nicht mehr den CI-Lauf vor dem Build stoppen.
