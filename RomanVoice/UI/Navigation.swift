@@ -1,5 +1,6 @@
 import SwiftUI
-import UniformTypeIdentifiers
+
+// MARK: - Navigation
 
 enum Screen: Equatable {
     case home
@@ -9,809 +10,363 @@ enum Screen: Equatable {
     case reader(UUID, Int?, Bool)
     case player(UUID)
     case settings
+    case room(RomanVoiceRoom)
 }
 
-@MainActor final class Navigation: ObservableObject {
+enum RomanVoiceRoom: String, Equatable, CaseIterable {
+    case library = "BIBLIOTHEK"
+    case reading = "LESEN"
+    case listening = "HÖREN"
+    case importing = "IMPORTIEREN"
+
+    var buttonAsset: String {
+        switch self {
+        case .library: return "RomanVoice_Icon_Bibliothek"
+        case .reading: return "RomanVoice_Icon_Lesen"
+        case .listening: return "RomanVoice_Icon_Hoeren"
+        case .importing: return "RomanVoice_Icon_Importieren"
+        }
+    }
+
+    var buttonTitle: String {
+        switch self {
+        case .library: return "Bibliothek"
+        case .reading: return "Lesen"
+        case .listening: return "Hören"
+        case .importing: return "Importieren"
+        }
+    }
+}
+
+@MainActor
+final class Navigation: ObservableObject {
     @Published var screen: Screen = .home
     @Published var room: Room = .salon
 
-    func go(_ screen: Screen, room: Room) {
-        withAnimation(.easeInOut(duration: 0.8)) {
+    func go(_ screen: Screen, room: Room = .salon) {
+        withAnimation(.easeInOut(duration: 0.35)) {
             self.room = room
             self.screen = screen
         }
     }
+
+    func goHome() {
+        go(.home, room: .salon)
+    }
+
+    func goToRoom(_ destination: RomanVoiceRoom) {
+        go(.room(destination), room: .salon)
+    }
 }
 
-struct RootView: View {
-    @EnvironmentObject var library: Library
-    @EnvironmentObject var navigation: Navigation
-    @EnvironmentObject var model: ModelManager
-    @EnvironmentObject var work: WorkCoordinator
-    @EnvironmentObject var player: AudioPlayer
-    @Environment(\.scenePhase) private var phase
+// MARK: - Root
 
-    @State private var menu = false
-    @State private var importing = false
-    @State private var imported: ImportedDocument?
-    @State private var network: NetworkPolicy = .wifi
-    @State private var documentError: String?
-    @State private var loading = false
-    @State private var useCover = true
-    @State private var selectedMode: AudioMode?
+struct RootView: View {
+    @EnvironmentObject private var navigation: Navigation
+
+    @State private var showMenu = false
+    @State private var showImprint = false
 
     var body: some View {
         ZStack {
-            SceneBackdrop(room: navigation.room)
+            switch navigation.screen {
+            case .home:
+                RomanVoiceStartScreen(
+                    showMenu: $showMenu,
+                    showImprint: $showImprint
+                )
 
-            Group {
-                switch navigation.screen {
-                case .home:
-                    salon
+            case .room(let destination):
+                RomanVoiceDeadEndScreen(destination: destination)
 
-                case .library(let intent):
-                    LibraryView(
-                        intent: intent,
-                        importAction: {
-                            importing = true
-                        }
-                    )
+            case .settings:
+                SettingsView()
 
-                case .detail(let id):
-                    BookDetailView(id: id)
-
-                case .analyze(let id):
-                    AnalysisView(id: id)
-
-                case .reader(let id, let offset, let preserve):
-                    ReaderView(
-                        id: id,
-                        initialOffset: offset,
-                        preservePosition: preserve
-                    )
-                    .id("\(id)-\(offset ?? -1)-\(preserve)")
-
-                case .player(let id):
-                    PlayerView(id: id)
-
-                case .settings:
-                    SettingsView()
-                }
+            // Die vorhandenen Programmteile bleiben kompilierbar,
+            // werden auf diesem ersten Startplatz aber bewusst noch nicht benutzt.
+            case .library, .detail, .analyze, .reader, .player:
+                RomanVoiceDeadEndScreen(destination: .library)
             }
-            .transition(.opacity)
-
-            if loading {
-                ProgressView("Datei wird gelesen …")
-                    .padding(25)
-                    .background(
-                        RomanStyle.green,
-                        in: RoundedRectangle(cornerRadius: 16)
-                    )
-            }
+        }
+        .sheet(isPresented: $showMenu) {
+            RomanVoiceMenu(showMenu: $showMenu)
+        }
+        .sheet(isPresented: $showImprint) {
+            RomanVoiceImprint(showImprint: $showImprint)
         }
         .foregroundStyle(RomanStyle.cream)
         .tint(RomanStyle.gold)
-
-        .sheet(isPresented: $menu) {
-            mainMenu
-                .presentationDetents([.medium, .large])
-        }
-
-        .fileImporter(
-            isPresented: $importing,
-            allowedContentTypes: [
-                .pdf,
-                .plainText,
-                UTType(filenameExtension: "docx") ?? .data
-            ]
-        ) { result in
-            switch result {
-            case .success(let url):
-                importFile(url)
-
-            case .failure(let error):
-                documentError = error.localizedDescription
-            }
-        }
-
-        .sheet(
-            isPresented: Binding(
-                get: {
-                    imported != nil
-                },
-                set: {
-                    if !$0 {
-                        imported = nil
-                        selectedMode = nil
-                    }
-                }
-            )
-        ) {
-            importConfirmation
-        }
-
-        .alert(
-            "RomanVoice",
-            isPresented: Binding(
-                get: {
-                    documentError != nil ||
-                    library.error != nil
-                },
-                set: {
-                    if !$0 {
-                        documentError = nil
-                        library.error = nil
-                    }
-                }
-            )
-        ) {
-            Button("OK") {
-                documentError = nil
-                library.error = nil
-            }
-        } message: {
-            Text(
-                documentError ??
-                library.error ??
-                ""
-            )
-        }
-
-        .onOpenURL {
-            importFile($0)
-        }
-
-        .onDrop(
-            of: [.fileURL],
-            isTargeted: nil
-        ) { providers in
-            guard let provider = providers.first else {
-                return false
-            }
-
-            _ = provider.loadDataRepresentation(
-                forTypeIdentifier:
-                    UTType.fileURL.identifier
-            ) { data, _ in
-                guard
-                    let data,
-                    let url = URL(
-                        dataRepresentation: data,
-                        relativeTo: nil
-                    )
-                else {
-                    return
-                }
-
-                Task { @MainActor in
-                    importFile(url)
-                }
-            }
-
-            return true
-        }
-
-        .onChange(of: phase) { _, value in
-            if value == .background {
-                work.setForeground(false)
-                player.persist()
-            }
-
-            if value == .active {
-                work.setForeground(true)
-            }
-        }
-
-        .onChange(of: model.ready) { _, ready in
-            if ready {
-                work.resumeAutomatic()
-            }
-        }
-
-        .task {
-            work.audioChanged = {
-                player.availableAudioChanged()
-            }
-        }
     }
+}
 
-    private var salon: some View {
+// MARK: - Startplatz
+
+private struct RomanVoiceStartScreen: View {
+    @EnvironmentObject private var navigation: Navigation
+
+    @Binding var showMenu: Bool
+    @Binding var showImprint: Bool
+
+    var body: some View {
         GeometryReader { geometry in
             ZStack {
+                salonBackground
+
+                // RomanVoice-Logo im Fensterbereich.
+                Image("RomanVoiceLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: min(geometry.size.width * 0.62, 310))
+                    .position(
+                        x: geometry.size.width * 0.50,
+                        y: geometry.size.height * 0.18
+                    )
+                    .accessibilityHidden(true)
+
+                // Die vier funktionalen Schaltflächen.
+                roomButton(.library, x: 0.22, y: 0.34, size: geometry.size)
+                roomButton(.reading, x: 0.25, y: 0.59, size: geometry.size)
+                roomButton(.listening, x: 0.77, y: 0.48, size: geometry.size)
+                roomButton(.importing, x: 0.58, y: 0.76, size: geometry.size)
+
+                // Hamburger und Einstellungen.
                 VStack {
                     HStack {
                         Button {
-                            menu = true
+                            showMenu = true
                         } label: {
-                            Image(
-                                systemName:
-                                    "line.3.horizontal"
-                            )
-                            .frame(
-                                width: 44,
-                                height: 44
-                            )
+                            Image(systemName: "line.3.horizontal")
+                                .font(.system(size: 24, weight: .semibold))
+                                .frame(width: 44, height: 44)
                         }
-                        .buttonStyle(RomanButton())
+                        .buttonStyle(RomanGlassButton())
+                        .accessibilityLabel("Menü")
 
                         Spacer()
 
                         Button {
-                            navigation.go(
-                                .settings,
-                                room: .settings
-                            )
+                            navigation.go(.settings, room: .settings)
                         } label: {
-                            Image(
-                                systemName:
-                                    "gearshape"
-                            )
-                            .frame(
-                                width: 44,
-                                height: 44
-                            )
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 23, weight: .semibold))
+                                .frame(width: 44, height: 44)
                         }
-                        .buttonStyle(RomanButton())
+                        .buttonStyle(RomanGlassButton())
+                        .accessibilityLabel("Einstellungen")
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
 
                     Spacer()
 
-                    HStack {
-                        Button("Impressum") {
-                            navigation.go(
-                                .settings,
-                                room: .settings
-                            )
-                        }
-
-                        Text("·")
-
-                        Button("Datenschutz") {
-                            navigation.go(
-                                .settings,
-                                room: .settings
-                            )
-                        }
-
-                        Text("· 3.0")
+                    Button("Impressum") {
+                        showImprint = true
                     }
-                    .font(.caption2)
-                    .shadow(radius: 5)
-                }
-                .padding(.horizontal, 15)
-                .padding(.bottom, 8)
-
-                hotspot(
-                    "Bibliothek",
-                    icon: "books.vertical",
-                    x: 0.22,
-                    y: 0.28,
-                    size: geometry.size
-                ) {
-                    navigation.go(
-                        .library(.library),
-                        room: .library
-                    )
-                }
-
-                hotspot(
-                    "Lesen",
-                    icon: "book",
-                    x: 0.24,
-                    y: 0.55,
-                    size: geometry.size
-                ) {
-                    navigation.go(
-                        .library(.read),
-                        room: .reading
-                    )
-                }
-
-                hotspot(
-                    "Hörbücher",
-                    icon: "headphones",
-                    x: 0.76,
-                    y: 0.44,
-                    size: geometry.size
-                ) {
-                    navigation.go(
-                        .library(.listen),
-                        room: .audio
-                    )
-                }
-
-                hotspot(
-                    "Neuer Roman",
-                    icon:
-                        "doc.text.magnifyingglass",
-                    x: 0.54,
-                    y: 0.74,
-                    size: geometry.size
-                ) {
-                    navigation.go(
-                        .library(.analyze),
-                        room: .desk
-                    )
+                    .font(.system(size: 12, weight: .medium, design: .serif))
+                    .foregroundStyle(RomanStyle.cream)
+                    .shadow(color: .black, radius: 4)
+                    .padding(.bottom, 10)
                 }
             }
         }
+        .ignoresSafeArea()
     }
 
-    private func hotspot(
-        _ title: String,
-        icon: String,
+    private var salonBackground: some View {
+        Image("Salon")
+            .resizable()
+            .scaledToFill()
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
+    }
+
+    private func roomButton(
+        _ destination: RomanVoiceRoom,
         x: CGFloat,
         y: CGFloat,
-        size: CGSize,
-        action: @escaping () -> Void
+        size: CGSize
     ) -> some View {
-        Button(action: action) {
-            Label(
-                title,
-                systemImage: icon
-            )
-            .font(
-                .system(
-                    .subheadline,
-                    design: .serif
+        Button {
+            navigation.goToRoom(destination)
+        } label: {
+            Image(destination.buttonAsset)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 88, height: 88)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(destination.buttonTitle)
+        .position(x: size.width * x, y: size.height * y)
+    }
+}
+
+// MARK: - Vier Sackgassen
+
+private struct RomanVoiceDeadEndScreen: View {
+    @EnvironmentObject private var navigation: Navigation
+
+    let destination: RomanVoiceRoom
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // In jeder Sackgasse exakt derselbe Salon – ohne Start-Schaltflächen.
+                Image("Salon")
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
+                    .accessibilityHidden(true)
+
+                // Raumname an derselben Stelle wie das RomanVoice-Logo.
+                RomanVoiceRoomLogo(title: destination.rawValue)
+                    .frame(width: min(geometry.size.width * 0.76, 350))
+                    .position(
+                        x: geometry.size.width * 0.50,
+                        y: geometry.size.height * 0.18
+                    )
+
+                VStack {
+                    HStack {
+                        Button {
+                            navigation.goHome()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 24, weight: .semibold))
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(RomanGlassButton())
+                        .accessibilityLabel("Zurück zum Start")
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+
+                    Spacer()
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+}
+
+// MARK: - Raumname im Stil des RomanVoice-Logos
+
+private struct RomanVoiceRoomLogo: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.custom("EBGaramond-Regular", size: 39))
+            .fontWeight(.semibold)
+            .tracking(2.2)
+            .minimumScaleFactor(0.55)
+            .lineLimit(1)
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [
+                        RomanStyle.cream,
+                        RomanStyle.gold,
+                        RomanStyle.cream
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
             )
-        }
-        .buttonStyle(RomanButton())
-        .frame(
-            minWidth: 130,
-            minHeight: 80
-        )
-        .contentShape(Rectangle())
-        .position(
-            x: size.width * x,
-            y: size.height * y
-        )
+            .shadow(color: .black.opacity(0.95), radius: 2, x: 0, y: 2)
+            .shadow(color: RomanStyle.gold.opacity(0.35), radius: 5)
+            .padding(.horizontal, 8)
+            .accessibilityAddTraits(.isHeader)
     }
+}
 
-    private var mainMenu: some View {
+// MARK: - Kleine transparente Bedienelemente
+
+private struct RomanGlassButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(RomanStyle.cream)
+            .background(
+                Circle()
+                    .fill(Color.black.opacity(configuration.isPressed ? 0.48 : 0.28))
+            )
+            .overlay(
+                Circle()
+                    .stroke(RomanStyle.gold.opacity(0.65), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.65), radius: 4, y: 2)
+            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
+    }
+}
+
+// MARK: - Hamburger-Menü
+
+private struct RomanVoiceMenu: View {
+    @EnvironmentObject private var navigation: Navigation
+    @Binding var showMenu: Bool
+
+    var body: some View {
         NavigationStack {
             List {
                 Button("Start") {
-                    menu = false
-                    navigation.go(
-                        .home,
-                        room: .salon
-                    )
+                    showMenu = false
+                    navigation.goHome()
                 }
 
-                Button("Bibliothek") {
-                    menu = false
-                    navigation.go(
-                        .library(.library),
-                        room: .library
-                    )
-                }
-
-                Button("Lesen") {
-                    menu = false
-                    navigation.go(
-                        .library(.read),
-                        room: .reading
-                    )
-                }
-
-                Button("Hörbücher") {
-                    menu = false
-                    navigation.go(
-                        .library(.listen),
-                        room: .audio
-                    )
-                }
-
-                Button(
-                    "Neuen Roman hinzufügen"
-                ) {
-                    menu = false
-                    importing = true
+                ForEach(RomanVoiceRoom.allCases, id: \.self) { destination in
+                    Button(destination.buttonTitle) {
+                        showMenu = false
+                        navigation.goToRoom(destination)
+                    }
                 }
 
                 Button("Einstellungen") {
-                    menu = false
-                    navigation.go(
-                        .settings,
-                        room: .settings
-                    )
+                    showMenu = false
+                    navigation.go(.settings, room: .settings)
                 }
             }
             .navigationTitle("RomanVoice")
         }
     }
-
-    private var importConfirmation: some View {
-        NavigationStack {
-            Form {
-                if let document = imported {
-                    Section(
-                        "Diese Datei importieren?"
-                    ) {
-                        LabeledContent(
-                            "Datei",
-                            value:
-                                document.filename
-                        )
-
-                        LabeledContent(
-                            "Typ",
-                            value:
-                                (document.filename
-                                    as NSString)
-                                .pathExtension
-                                .uppercased()
-                        )
-
-                        LabeledContent(
-                            "Größe",
-                            value:
-                                ByteCountFormatter
-                                .string(
-                                    fromByteCount:
-                                        Int64(
-                                            document
-                                                .original
-                                                .count
-                                        ),
-                                    countStyle:
-                                        .file
-                                )
-                        )
-
-                        LabeledContent(
-                            "Titel",
-                            value: document.title
-                        )
-
-                        LabeledContent(
-                            "Autor",
-                            value:
-                                document.author
-                                    .isEmpty
-                                ? "Nicht angegeben"
-                                : document.author
-                        )
-
-                        if document.cover != nil {
-                            Toggle(
-                                "Erste PDF-Seite / Dokumentbild als Cover übernehmen",
-                                isOn: $useCover
-                            )
-                        }
-                    }
-
-                    Section(
-                        "Wie möchtest du diesen Text hören?"
-                    ) {
-                        Button {
-                            selectedMode = .audiobook
-                        } label: {
-                            modeRow(
-                                title: "Hörbuch",
-                                subtitle:
-                                    "Eine Stimme liest den gesamten Text. Keine Figuren- oder Dialoganalyse.",
-                                icon: "headphones",
-                                selected:
-                                    selectedMode ==
-                                    .audiobook
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            selectedMode = .radioPlay
-                        } label: {
-                            modeRow(
-                                title: "Hörspiel",
-                                subtitle:
-                                    "Figuren, Dialoge und Sprecher werden mit der lokalen KI analysiert.",
-                                icon:
-                                    "person.3.fill",
-                                selected:
-                                    selectedMode ==
-                                    .radioPlay
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    Picker(
-                        "Benötigte Downloads",
-                        selection: $network
-                    ) {
-                        ForEach(
-                            NetworkPolicy.allCases,
-                            id: \.self
-                        ) {
-                            Text($0.rawValue)
-                                .tag($0)
-                        }
-                    }
-
-                    if selectedMode == .audiobook {
-                        Text(
-                            "Für ein Hörbuch wird keine KI-Analyse benötigt. Kapitel und Überschriften bleiben für Navigation und Fortschritt erhalten."
-                        )
-                        .font(.caption)
-                    } else if selectedMode == .radioPlay {
-                        Text(
-                            "Für ein Hörspiel wird die lokale KI zur Figuren- und Dialoganalyse verwendet."
-                        )
-                        .font(.caption)
-                    }
-
-                    Text(
-                        "Die Verarbeitung erfolgt lokal. Die Netzwerkauswahl gilt nur für erforderliche Downloads. Importiere nur Inhalte, zu deren Nutzung du berechtigt bist."
-                    )
-                    .font(.caption)
-
-                    Button("Import bestätigen") {
-                        confirmImport(document)
-                    }
-                    .disabled(
-                        selectedMode == nil
-                    )
-                }
-            }
-            .navigationTitle("Neuer Roman")
-            .toolbar {
-                Button("Abbrechen") {
-                    imported = nil
-                    selectedMode = nil
-                }
-            }
-        }
-    }
-
-    private func modeRow(
-        title: String,
-        subtitle: String,
-        icon: String,
-        selected: Bool
-    ) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.title2)
-                .frame(width: 32)
-
-            VStack(
-                alignment: .leading,
-                spacing: 4
-            ) {
-                Text(title)
-                    .font(.headline)
-
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Image(
-                systemName:
-                    selected
-                    ? "checkmark.circle.fill"
-                    : "circle"
-            )
-        }
-        .contentShape(Rectangle())
-        .padding(.vertical, 5)
-    }
-
-    private func importFile(_ url: URL) {
-        guard !loading else {
-            return
-        }
-
-        loading = true
-        selectedMode = nil
-
-        Task {
-            do {
-                imported =
-                    try await Task.detached {
-                        try DocumentImporter.read(
-                            url
-                        )
-                    }.value
-            } catch {
-                documentError =
-                    error.localizedDescription
-            }
-
-            loading = false
-        }
-    }
-
-    private func confirmImport(
-        _ document: ImportedDocument
-    ) {
-        guard let selectedMode else {
-            documentError =
-                "Bitte Hörbuch oder Hörspiel auswählen."
-            return
-        }
-
-        do {
-            var book = Novel(
-                title: document.title,
-                author: document.author,
-                sourceName:
-                    document.filename,
-                text: document.text
-            )
-
-            book.audioMode = selectedMode
-            book.network = network
-            book.spoilers =
-                library.preferences.spoilers
-
-            let filename =
-                "original." +
-                (document.filename as NSString)
-                    .pathExtension
-                    .lowercased()
-
-            try AppFiles.write(
-                document.original,
-                to:
-                    AppFiles.book(book.id)
-                    .appendingPathComponent(
-                        filename
-                    )
-            )
-
-            if useCover,
-               let cover = document.cover {
-                try AppFiles.write(
-                    cover,
-                    to:
-                        AppFiles.book(book.id)
-                        .appendingPathComponent(
-                            "cover.image"
-                        )
-                )
-
-                book.coverFile =
-                    "cover.image"
-            }
-
-            book.sourceFile = filename
-            book.chapters =
-                document.chapters
-
-            if book.chapters.isEmpty {
-                book.chapters =
-                    TextStructure.chapters(
-                        book.text
-                    )
-            }
-
-            book.segments =
-                TextStructure.segments(
-                    book.text,
-                    chapters: book.chapters
-                )
-
-            if selectedMode == .audiobook {
-                prepareAudiobook(&book)
-            }
-
-            try library.save(book)
-
-            imported = nil
-            self.selectedMode = nil
-
-            navigation.go(
-                .analyze(book.id),
-                room: .desk
-            )
-
-            // Hörspiel startet bewusst NICHT
-            // automatisch. Der Nutzer startet
-            // die KI-Analyse im Analysebereich.
-            //
-            // Hörbuch benötigt Qwen überhaupt nicht.
-        } catch {
-            documentError =
-                error.localizedDescription
-        }
-    }
-
-    private func prepareAudiobook(
-        _ book: inout Novel
-    ) {
-        for index in book.segments.indices {
-            book.segments[index].speaker =
-                "Erzähler"
-
-            book.segments[index].dialogue =
-                false
-
-            book.segments[index].analyzed =
-                true
-
-            book.segments[index].error =
-                nil
-        }
-
-        var narrator =
-            book.characters.first {
-                $0.isNarrator
-            }
-            ?? CharacterRole(
-                name: "Erzähler",
-                isNarrator: true
-            )
-
-        narrator.name = "Erzähler"
-        narrator.isNarrator = true
-        narrator.appearances =
-            book.segments.count
-
-        book.characters = [narrator]
-        book.phase = .review
-        book.interruptedPhase = nil
-        book.explicitStop = false
-        book.voicesConfirmed = false
-    }
 }
-struct ConstructionView: View {
-    let title: String
-    let subtitle: String
-    let back: () -> Void
 
-    init(
-        title: String = "Hier wird gebaut",
-        subtitle: String = "Dieser Bereich ist noch nicht fertig.",
-        back: @escaping () -> Void
-    ) {
-        self.title = title
-        self.subtitle = subtitle
-        self.back = back
-    }
+// MARK: - Impressum
+
+private struct RomanVoiceImprint: View {
+    @Binding var showImprint: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            PageHeader(
-                title: title,
-                subtitle: "RomanVoice 3.0"
-            ) {
-                back()
-            }
+        NavigationStack {
+            ZStack {
+                RomanStyle.green.ignoresSafeArea()
 
-            Spacer()
+                VStack(spacing: 18) {
+                    Text("Impressum")
+                        .font(.custom("EBGaramond-Regular", size: 34))
+                        .foregroundStyle(RomanStyle.gold)
 
-            RomanPanel {
-                VStack(spacing: 22) {
-                    Image(systemName: "hammer.fill")
-                        .font(.system(size: 54, weight: .semibold))
-                        .foregroundStyle(.orange)
+                    Text("RomanVoice 3.0")
+                        .font(.system(.body, design: .serif))
+                        .foregroundStyle(RomanStyle.cream)
 
-                    Text(title)
-                        .font(.title2.bold())
+                    Text("Die vollständigen Impressumsangaben werden hier später eingesetzt.")
+                        .font(.system(.footnote, design: .serif))
+                        .foregroundStyle(RomanStyle.cream.opacity(0.8))
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal, 30)
 
-                    Text(subtitle)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-
-                    Text(
-                        "WIRD GEBAUT · UNDER CONSTRUCTION · WIRD GEBAUT · UNDER CONSTRUCTION"
-                    )
-                    .font(.caption.bold())
-                    .multilineTextAlignment(.center)
-                    .rotationEffect(.degrees(-3))
+                    Spacer()
                 }
-                .padding()
+                .padding(.top, 35)
             }
-            .padding(.horizontal, 18)
-
-            Spacer()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Fertig") {
+                        showImprint = false
+                    }
+                }
+            }
         }
     }
 }

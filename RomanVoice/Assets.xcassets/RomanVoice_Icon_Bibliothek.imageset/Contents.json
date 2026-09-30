@@ -1,0 +1,6 @@
+{
+  "images" : [
+    { "filename" : "RomanVoice_Icon_Bibliothek.png", "idiom" : "universal", "scale" : "1x" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}
