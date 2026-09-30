@@ -13,8 +13,11 @@ assets = romanvoice / 'Assets.xcassets'
 
 # Asset-catalog metadata must use the exact Apple filename casing.
 app_icon_set = assets / 'AppIcon.appiconset'
-assert (app_icon_set / 'Contents.json').is_file(), 'AppIcon.appiconset/Contents.json fehlt oder hat falsche Groß-/Kleinschreibung'
-assert not (app_icon_set / 'contents.json').exists(), 'Veraltete AppIcon-Metadatei contents.json gefunden'
+app_icon_entries = {p.name for p in app_icon_set.iterdir()}
+assert 'Contents.json' in app_icon_entries, 'AppIcon.appiconset/Contents.json fehlt oder hat falsche Groß-/Kleinschreibung'
+assert not any(name.casefold() == 'contents.json' and name != 'Contents.json' for name in app_icon_entries), (
+    'Veraltete oder falsch geschriebene AppIcon-Metadatei gefunden'
+)
 app_icon_meta = json.loads((app_icon_set / 'Contents.json').read_text(encoding='utf-8'))
 app_icon_names = [entry.get('filename') for entry in app_icon_meta.get('images', []) if entry.get('filename')]
 assert app_icon_names == ['AppIcon.png'], f'Unerwartete AppIcon-Dateien: {app_icon_names}'
@@ -27,8 +30,12 @@ assert (width, height) == (1024, 1024), f'AppIcon muss 1024x1024 sein, ist aber 
 
 for catalog_dir in assets.iterdir():
     if catalog_dir.is_dir() and catalog_dir.suffix in {'.imageset', '.appiconset'}:
+        catalog_entries = {p.name for p in catalog_dir.iterdir()}
+        assert 'Contents.json' in catalog_entries, f'Contents.json fehlt oder hat falsche Schreibweise: {catalog_dir}'
+        assert not any(name.casefold() == 'contents.json' and name != 'Contents.json' for name in catalog_entries), (
+            f'Falsch geschriebene Contents.json in {catalog_dir}'
+        )
         contents = catalog_dir / 'Contents.json'
-        assert contents.is_file(), f'Contents.json fehlt oder hat falsche Schreibweise: {catalog_dir}'
         catalog_meta = json.loads(contents.read_text(encoding='utf-8'))
         referenced = {entry.get('filename') for entry in catalog_meta.get('images', []) if entry.get('filename')}
         for filename in referenced:

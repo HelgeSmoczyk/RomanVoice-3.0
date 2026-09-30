@@ -18,6 +18,8 @@ Der Startplatz enthält die vier aktuellen Routen **Bibliothek**, **Lesen**, **H
 - AppIcon-Katalog korrigiert: Apple-konformes `Contents.json` mit korrekter Groß-/Kleinschreibung und `AppIcon.png` exakt 1024 × 1024 Pixel. Dadurch wird die zuvor sichtbare Xcode-Warnung zum „unassigned child“ nicht mehr durch die fehlerhafte AppIcon-Metadatei verursacht.
 - Veraltete Prüfdokumentation vom 16. September ersetzt.
 
+- Plattformfehler im Verifier korrigiert: Die frühere Prüfung `not Path("contents.json").exists()` war auf dem Linux-Prüfsystem unauffällig, schlägt aber auf dem standardmäßig **nicht zwischen Groß-/Kleinschreibung unterscheidenden macOS-Dateisystem** auch dann an, wenn nur `Contents.json` existiert. Die Prüfung arbeitet jetzt plattformneutral über die exakten Verzeichnis-Einträge.
+
 ## Lokale Prüfung – Durchlauf 1
 
 Auf dem entpackten Projekt wurden ausgeführt:
@@ -33,6 +35,8 @@ Auf dem entpackten Projekt wurden ausgeführt:
 - AppIcon-Metadaten und 1024×1024-PNG-Abmessungen
 
 Alle lokalen Prüfungen bestanden.
+
+Zusätzlich wurde der Verifier selbst auf plattformneutrale Groß-/Kleinschreibungsprüfung kontrolliert, damit die macOS-Abhängigkeitsstufe nicht erneut an `Contents.json`/`contents.json` scheitert.
 
 ## Lokale Prüfung – Durchlauf 2
 

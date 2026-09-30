@@ -25,6 +25,7 @@ Im App-Target liegen aktuell 24 Swift-Quelldateien plus Objective-C++-Brücke f�
 - Build #54 stoppte bereits im Projekt-Verifier, weil der neue Salon absichtlich die alte Salon-Prüfsumme ungültig gemacht hatte. Das war kein Swift-Compilerfehler.
 - Die Salon-Prüfsumme und der Verifier sind im aktuellen Paket korrigiert.
 - Der AppIcon-Katalog wurde zusätzlich bereinigt (`Contents.json`, 1024×1024), um die zuvor sichtbare AppIcon-Warnung zu beseitigen.
+- Der Projekt-Verifier prüft die exakte Dateinamens-Schreibweise jetzt plattformneutral und funktioniert damit auch auf dem case-insensitiven macOS-Dateisystem von GitHub Actions.
 
 ## Prüfung des aktuellen Pakets
 
