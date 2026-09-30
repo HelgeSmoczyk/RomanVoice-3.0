@@ -11,14 +11,24 @@ root = pathlib.Path(__file__).resolve().parents[1]
 romanvoice = root / 'RomanVoice'
 assets = romanvoice / 'Assets.xcassets'
 
-# Asset-catalog metadata must use the exact Apple filename casing.
+# GitHub web uploads can leave a case-only predecessor (for example
+# `contents.json`) in the repository. macOS runners use a case-insensitive
+# filesystem, so the verifier must resolve the metadata file by name without
+# depending on its stored casing. We still require exactly one metadata file.
+def contents_json(catalog_dir: pathlib.Path) -> pathlib.Path:
+    matches = [
+        entry for entry in catalog_dir.iterdir()
+        if entry.is_file() and entry.name.casefold() == 'contents.json'
+    ]
+    assert len(matches) == 1, (
+        f'Genau eine Contents.json-Metadatei erwartet in {catalog_dir}, '
+        f'gefunden: {[entry.name for entry in matches]}'
+    )
+    return matches[0]
+
 app_icon_set = assets / 'AppIcon.appiconset'
-app_icon_entries = {p.name for p in app_icon_set.iterdir()}
-assert 'Contents.json' in app_icon_entries, 'AppIcon.appiconset/Contents.json fehlt oder hat falsche Groß-/Kleinschreibung'
-assert not any(name.casefold() == 'contents.json' and name != 'Contents.json' for name in app_icon_entries), (
-    'Veraltete oder falsch geschriebene AppIcon-Metadatei gefunden'
-)
-app_icon_meta = json.loads((app_icon_set / 'Contents.json').read_text(encoding='utf-8'))
+app_icon_contents = contents_json(app_icon_set)
+app_icon_meta = json.loads(app_icon_contents.read_text(encoding='utf-8'))
 app_icon_names = [entry.get('filename') for entry in app_icon_meta.get('images', []) if entry.get('filename')]
 assert app_icon_names == ['AppIcon.png'], f'Unerwartete AppIcon-Dateien: {app_icon_names}'
 app_icon = app_icon_set / 'AppIcon.png'
@@ -30,17 +40,12 @@ assert (width, height) == (1024, 1024), f'AppIcon muss 1024x1024 sein, ist aber 
 
 for catalog_dir in assets.iterdir():
     if catalog_dir.is_dir() and catalog_dir.suffix in {'.imageset', '.appiconset'}:
-        catalog_entries = {p.name for p in catalog_dir.iterdir()}
-        assert 'Contents.json' in catalog_entries, f'Contents.json fehlt oder hat falsche Schreibweise: {catalog_dir}'
-        assert not any(name.casefold() == 'contents.json' and name != 'Contents.json' for name in catalog_entries), (
-            f'Falsch geschriebene Contents.json in {catalog_dir}'
-        )
-        contents = catalog_dir / 'Contents.json'
+        contents = contents_json(catalog_dir)
         catalog_meta = json.loads(contents.read_text(encoding='utf-8'))
         referenced = {entry.get('filename') for entry in catalog_meta.get('images', []) if entry.get('filename')}
         for filename in referenced:
             assert (catalog_dir / filename).is_file(), f'Referenziertes Asset fehlt: {catalog_dir / filename}'
-        payload_files = {p.name for p in catalog_dir.iterdir() if p.is_file() and p.name != 'Contents.json' and not p.name.startswith('.')}
+        payload_files = {p.name for p in catalog_dir.iterdir() if p.is_file() and p != contents and not p.name.startswith('.')}
         assert payload_files == referenced, (
             f'Nicht zugewiesene oder fehlende Asset-Datei in {catalog_dir}: '
             f'Dateien={sorted(payload_files)}, Contents.json={sorted(referenced)}'
@@ -80,7 +85,7 @@ manifest = json.loads((root / 'Docs/Asset-Manifest.json').read_text(encoding='ut
 for item in manifest:
     folder = assets / (item['asset'] + '.imageset')
     assert folder.is_dir(), f"Asset fehlt: {item['asset']}"
-    metadata = json.loads((folder / 'Contents.json').read_text(encoding='utf-8'))
+    metadata = json.loads(contents_json(folder).read_text(encoding='utf-8'))
     filenames = [entry.get('filename') for entry in metadata.get('images', []) if entry.get('filename')]
     assert filenames, f"Keine Bilddatei in {folder}"
     image = folder / filenames[0]

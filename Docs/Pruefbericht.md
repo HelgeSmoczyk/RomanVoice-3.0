@@ -1,55 +1,50 @@
 # Prüfbericht – RomanVoice 3.0 Startplatz
 
-Stand: 30. September 2026.
+Stand: 30. September 2026
 
-## Grundlage dieses Pakets
+## Anlass der letzten Korrektur
 
-Dieses Paket basiert auf `RomanVoice-3.0-Startplatz-sauberer-Salon.zip`. Der bewusst ausgetauschte Salon (`Salon.imageset/salon_clean.jpeg`) ist im Asset-Manifest mit seiner aktuellen SHA-256-Prüfsumme hinterlegt. Die sechs Referenzgrafiken bleiben unverändert.
-
-Der Startplatz enthält die vier aktuellen Routen **Bibliothek**, **Lesen**, **Hören** und **Importieren**. Jede Route führt derzeit in eine bewusst einfache Sackgasse mit passender Raumüberschrift und einem als `Zurück` gekennzeichneten Rückweg. Die bestehende RomanVoice-Architektur (`Navigation`, `Screen`, `RootView` und die übrigen App-Bausteine) bleibt erhalten.
+Der letzte GitHub-Actions-Lauf brach bereits in **Abhängigkeiten vorbereiten** ab. Ursache war nicht Swift oder Xcode, sondern `scripts/verify_project.py`: Der Prüfer verlangte beim AppIcon den Dateinamen `Contents.json` in exakt dieser Groß-/Kleinschreibung. Nach GitHub-Webuploads kann jedoch ein älterer, nur in der Schreibweise abweichender Eintrag wie `contents.json` im Repository verbleiben. Auf dem standardmäßig case-insensitiven macOS-Arbeitsdateisystem des GitHub-Runners kann dadurch beim Checkout genau diese Schreibweise sichtbar werden.
 
 ## Korrigiert
 
-- Neue Salon-Grafik und ihre Prüfsumme synchronisiert.
-- `ConstructionView.swift` liegt genau einmal im App-Target unter `RomanVoice/ConstructionView.swift`.
-- Doppelte Swift-Typdeklarationen werden durch `scripts/verify_project.py` abgefangen.
-- UI-Test und Navigation verwenden dieselben vier Startplatz-Routen und Raumtitel.
-- `Zurück` besitzt einen eindeutigen Accessibility-Identifier für den UI-Test.
-- AppIcon-Katalog korrigiert: Apple-konformes `Contents.json` mit korrekter Groß-/Kleinschreibung und `AppIcon.png` exakt 1024 × 1024 Pixel. Dadurch wird die zuvor sichtbare Xcode-Warnung zum „unassigned child“ nicht mehr durch die fehlerhafte AppIcon-Metadatei verursacht.
-- Veraltete Prüfdokumentation vom 16. September ersetzt.
+- `scripts/verify_project.py` löst die Asset-Metadatei jetzt für alle `.imageset`- und `.appiconset`-Ordner case-insensitiv auf und verlangt weiterhin exakt eine passende Metadatei.
+- `scripts/prepare_dependencies.sh` normalisiert vor dem Verifier und vor Xcode/actool alle Asset-Metadateien mit einer zweistufigen Umbenennung auf den kanonischen Namen `Contents.json`. Die zweistufige Umbenennung funktioniert auch auf einem case-insensitiven macOS-Dateisystem.
+- Die eigentlichen Asset-Prüfungen bleiben unverändert streng: referenzierte Bilddateien, unzugewiesene Dateien, AppIcon-PNG, AppIcon-Abmessungen und Asset-SHA-256 werden weiterhin geprüft.
+- Der aktuelle AppIcon-Inhalt verweist auf genau `AppIcon.png`; die PNG-Datei ist 1024 × 1024 Pixel groß.
+- Die bestehende Startplatz-Navigation, `ConstructionView.swift`, der Zurück-Identifier und der UI-Test-Vertrag bleiben erhalten.
 
-- Plattformfehler im Verifier korrigiert: Die frühere Prüfung `not Path("contents.json").exists()` war auf dem Linux-Prüfsystem unauffällig, schlägt aber auf dem standardmäßig **nicht zwischen Groß-/Kleinschreibung unterscheidenden macOS-Dateisystem** auch dann an, wenn nur `Contents.json` existiert. Die Prüfung arbeitet jetzt plattformneutral über die exakten Verzeichnis-Einträge.
+## Prüfung – Durchlauf 1
 
-## Lokale Prüfung – Durchlauf 1
+Auf dem Arbeitsstand wurden ausgeführt:
 
-Auf dem entpackten Projekt wurden ausgeführt:
+- `python3 scripts/verify_project.py` → **PASS**
+- Swift-Syntaxprüfung mit `swiftc -frontend -parse` für alle **24 Swift-Dateien** → **PASS**
+- JSON-Prüfung aller **15 JSON-Dateien** → **PASS**
+- Property-List-Prüfung → **PASS**
+- YAML-Prüfung von `project.yml` und `.github/workflows/main.yml` → **PASS**
+- `bash -n scripts/prepare_dependencies.sh` → **PASS**
+- Prüfung auf case-insensitive Pfadkollisionen im Paket → **0 Kollisionen**
 
-- `python3 scripts/verify_project.py`
-- Swift-Syntaxprüfung jeder Swift-Datei mit `swiftc -frontend -parse`
-- Prüfung auf doppelte Top-Level-Typen
-- JSON-Prüfung aller `.json`-Dateien
-- Property-List-Prüfung aller `.plist`-Dateien
-- YAML-Prüfung von `project.yml` und GitHub-Workflow
-- `bash -n scripts/prepare_dependencies.sh`
-- Asset-Prüfsummen einschließlich des neuen Salons
-- AppIcon-Metadaten und 1024×1024-PNG-Abmessungen
+Der Projekt-Verifier meldete:
 
-Alle lokalen Prüfungen bestanden.
+`PASS: 24 Swift source files; 7 manifest assets; font; plist; audio privacy; bridge; IPA structure; AppIcon; source placement; duplicate-type check; Startplatz/UI-test contract.`
 
-Zusätzlich wurde der Verifier selbst auf plattformneutrale Groß-/Kleinschreibungsprüfung kontrolliert, damit die macOS-Abhängigkeitsstufe nicht erneut an `Contents.json`/`contents.json` scheitert.
+## Exakter Fehlerfall zusätzlich simuliert
 
-## Lokale Prüfung – Durchlauf 2
+In einer separaten Kopie wurden **alle 14 Asset-Metadateien** absichtlich von `Contents.json` nach `contents.json` umbenannt.
 
-Nach Erstellung der neuen ZIP wurde genau diese ZIP in ein frisches zweites Verzeichnis entpackt. Dort wurden die gleichen Prüfungen erneut ausgeführt. Zusätzlich wurde die ZIP-Integrität mit `unzip -t` geprüft.
+- Der neue Verifier lief bereits auf dieser Schreibweise vollständig durch → **PASS**.
+- Anschließend wurde `scripts/prepare_dependencies.sh` mit vorhandener Dummy-Framework-Struktur ausgeführt, damit kein Download nötig war.
+- Das Skript normalisierte danach **alle 14 Kataloge** wieder auf exakt `Contents.json`.
+- Der Projekt-Verifier lief danach erneut vollständig durch → **PASS**.
 
-Alle lokalen Prüfungen bestanden.
+Damit wurde genau der Fehlerzustand aus dem letzten GitHub-Log reproduziert und lokal abgefangen.
 
-## Bereits durch GitHub/Xcode belegt
+## Prüfung – Durchlauf 2
 
-Ein unmittelbar vorausgehender Projektstand lief in GitHub Actions als Build **#53** erfolgreich durch. Der danach hochgeladene neue Salon führte bei Build #54 noch vor Xcode zu einem absichtlichen Stopp des Projekt-Verifiers, weil dessen alte Salon-Prüfsumme nicht mehr zum Bild passte. Diese Prüfsumme ist in diesem Paket aktualisiert.
+Nach dem Packen der finalen ZIP wird genau diese ZIP in ein frisches Verzeichnis entpackt. Dort werden Projekt-Verifier, Swift-Parser, JSON/Plist/YAML-Prüfung, Shell-Syntaxprüfung und ZIP-Integrität erneut ausgeführt. Das Ergebnis dieses zweiten Durchlaufs wird erst nach erfolgreichem Abschluss als finaler Paketstand ausgegeben.
 
-## Noch nicht durch dieses lokale System nachweisbar
+## Grenze der lokalen Prüfung
 
-Dieses System ist kein macOS/Xcode-Rechner. Deshalb kann hier kein echter iOS-Link-, Simulator- oder IPA-Build des **neu gepackten** Standes ausgeführt werden. Die endgültige Bestätigung dieses Pakets muss der nächste GitHub-Actions-Lauf mit Xcode liefern.
-
-Ein grüner Build ist weiterhin keine vollständige Produktabnahme; visuelle und funktionale Prüfung auf dem iPhone bleibt separat erforderlich.
+Diese Umgebung ist kein macOS/Xcode-Rechner. Ein echter iOS-Simulatorlauf, `xcodebuild` und die IPA-Erzeugung des finalen Pakets können hier nicht ausgeführt werden. Diese letzte Bestätigung liefert ausschließlich der nächste GitHub-Actions-Lauf.

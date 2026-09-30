@@ -1,34 +1,32 @@
 # RomanVoice 3.0 – gespeicherter Arbeitsstand
 
-Stand: 30. September 2026. **Aktueller Startplatz-Teststand, noch keine vollständige App-Abnahme.**
-
-## Aktueller Master für den Startplatz
-
-Gemeinsame räumliche Grundlage ist der neue saubere Salon in `RomanVoice/Assets.xcassets/Salon.imageset/salon_clean.jpeg`. Diese Grafik wurde bewusst gegenüber dem ursprünglichen Referenzasset geändert und ist deshalb im `Docs/Asset-Manifest.json` mit `unchanged: false` sowie ihrer aktuellen SHA-256-Prüfsumme geführt. Die sechs Referenzgrafiken bleiben unverändert.
+Stand: 30. September 2026. Aktueller Startplatz-Teststand, noch keine vollständige App-Abnahme.
 
 ## Aktueller Startplatz
 
-- RomanVoice-Logo auf dem Salon.
-- Vier funktionale Startbuttons: Bibliothek, Lesen, Hören, Importieren.
+- Sauberer Salon als gemeinsamer Hintergrund.
+- Vier Startbuttons: Bibliothek, Lesen, Hören, Importieren.
 - Hamburger-Menü, Einstellungen und Impressum bleiben erreichbar.
-- Die vier Startbuttons führen derzeit jeweils auf eine eigene Sackgasse mit dem Titel BIBLIOTHEK, LESEN, HÖREN bzw. IMPORTIEREN.
-- Jede Sackgasse besitzt einen eindeutigen `Zurück`-Button zum Startplatz.
-- Die UI-Tests verwenden genau diese Bezeichnungen.
+- Die vier Startbuttons führen aktuell in eigene Sackgassen mit BIBLIOTHEK, LESEN, HÖREN und IMPORTIEREN.
+- Jede Sackgasse besitzt einen eindeutigen `Zurück`-Button.
+- Navigation und UI-Test verwenden dieselben Bezeichnungen.
 
 ## Projektstruktur
 
-Im App-Target liegen aktuell 24 Swift-Quelldateien plus Objective-C++-Brücke für das lokale Modell. `ConstructionView.swift` liegt genau einmal unter `RomanVoice/ConstructionView.swift`. Der Projekt-Verifier prüft doppelte Swift-Typen, Asset-Prüfsummen, Ressourcen, AppIcon, Startplatz/UI-Test-Vertrag und wesentliche Projektstruktur.
+Im App-Target liegen aktuell 24 Swift-Quelldateien plus Objective-C++-Brücke für das lokale Modell. `ConstructionView.swift` liegt einmal unter `RomanVoice/ConstructionView.swift`. Der Projekt-Verifier prüft doppelte Swift-Typen, Asset-Prüfsummen, Ressourcen, AppIcon, Startplatz/UI-Test-Vertrag und wesentliche Projektstruktur.
 
-## Build-Stand
+## Letzter korrigierter CI-Fehler
 
-- Ein vorausgehender Projektstand wurde in GitHub Actions als Build #53 erfolgreich gebaut/getestet.
-- Build #54 stoppte bereits im Projekt-Verifier, weil der neue Salon absichtlich die alte Salon-Prüfsumme ungültig gemacht hatte. Das war kein Swift-Compilerfehler.
-- Die Salon-Prüfsumme und der Verifier sind im aktuellen Paket korrigiert.
-- Der AppIcon-Katalog wurde zusätzlich bereinigt (`Contents.json`, 1024×1024), um die zuvor sichtbare AppIcon-Warnung zu beseitigen.
-- Der Projekt-Verifier prüft die exakte Dateinamens-Schreibweise jetzt plattformneutral und funktioniert damit auch auf dem case-insensitiven macOS-Dateisystem von GitHub Actions.
+Der letzte GitHub-Lauf scheiterte bereits in `scripts/verify_project.py`, weil der Prüfer den AppIcon-Metadateinamen ausschließlich als exakt `Contents.json` akzeptierte. GitHub-Webuploads können bei reinen Groß-/Kleinschreibungsänderungen ältere Git-Einträge hinterlassen; auf dem case-insensitiven macOS-Runner kann deshalb `contents.json` sichtbar sein.
 
-## Prüfung des aktuellen Pakets
+Der aktuelle Stand ist dagegen abgesichert:
 
-Das aktuelle Paket wird vor Ausgabe zweimal lokal geprüft: einmal im Arbeitsverzeichnis und ein zweites Mal nach Neuverpackung durch erneutes Entpacken der fertigen ZIP. Details stehen in `Docs/Pruefbericht.md`.
+- `prepare_dependencies.sh` normalisiert Asset-Metadateien vor der Prüfung auf `Contents.json`.
+- `verify_project.py` findet die Metadatei unabhängig von der gespeicherten Schreibweise, verlangt aber weiterhin genau eine passende Datei und prüft ihren Inhalt vollständig.
+- Der exakte Fehlerfall wurde mit absichtlich kleingeschriebenen Metadateien simuliert und erfolgreich geprüft.
 
-Ein echter Xcode-/Simulatorlauf des neu gepackten Standes kann lokal nicht ausgeführt werden und muss durch den nächsten GitHub-Actions-Lauf bestätigt werden.
+## Prüfung
+
+Der aktuelle Paketstand wird zweimal geprüft: einmal vor dem Packen und ein zweites Mal nach Neuverpackung durch erneutes Entpacken der finalen ZIP. Details stehen in `Docs/Pruefbericht.md`.
+
+Ein echter Xcode-/Simulatorlauf kann in dieser Umgebung nicht ausgeführt werden und muss durch GitHub Actions bestätigt werden.
